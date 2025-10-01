@@ -1,0 +1,170 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { EyeIcon, EyeOffIcon } from 'lucide-react';
+import { loginFailure, loginSuccess, startLoading } from '@/Redux/slices/authSlice';
+import axiosInstance from '@/axios';
+import requests from '@/lib/urls';
+
+
+const Login = () => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    dispatch(startLoading(true));
+
+    try {
+      const response = await axiosInstance.post(`${requests.LoginUser}`, {
+        username: username,
+        password: password
+      });
+
+      const { user, access, refresh } = response.data;
+      
+      // Dispatch login success with the correct payload structure
+      dispatch(loginSuccess({
+        user: user,
+        access_token: access,
+        refresh_token: refresh
+      }));
+
+      // Save to localStorage
+      const authTokens = {
+        user: user,
+        token: access,
+        refresh: refresh
+      };
+      localStorage.setItem('cipherauthTokens', JSON.stringify(authTokens));
+
+      // Navigate to home page
+      navigate('/');
+
+    } catch (error: any) {
+      console.error('Login error:', error);
+      setError(
+        error.response?.data?.detail || 
+        error.response?.data?.message || 
+        'Login failed. Please check your credentials.'
+      );
+      dispatch(loginFailure());
+    } finally {
+      setIsLoading(false);
+      dispatch(startLoading(false));
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-primary/5 flex items-center justify-center p-4">
+      <Card className="w-full max-w-lg shadow-lg">
+        <CardHeader className="text-center space-y-4">
+          <div className="mx-auto w-16 h-16 bg-primary rounded-2xl flex items-center justify-center">
+            <span className="text-primary-foreground font-bold text-2xl">ERP</span>
+          </div>
+          <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
+          <CardDescription>
+            Sign in to your Enterprise Suite account to continue
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {error && (
+            <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
+              <p className="text-destructive text-sm text-center">{error}</p>
+            </div>
+          )}
+          
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                type="text"
+                placeholder="Enter your username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                disabled={isLoading}
+                autoComplete="username"
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  disabled={isLoading}
+                  autoComplete="current-password"
+                />
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 p-0"
+                  onClick={() => setShowPassword(!showPassword)}
+                  disabled={isLoading}
+                >
+                  {showPassword ? (
+                    <EyeOffIcon className="h-4 w-4" />
+                  ) : (
+                    <EyeIcon className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="remember"
+                  className="rounded border-border"
+                  disabled={isLoading}
+                />
+                <Label htmlFor="remember" className="text-sm">
+                  Remember me
+                </Label>
+              </div>
+              <Button variant="link" className="text-sm p-0 h-auto" disabled={isLoading}>
+                Forgot password?
+              </Button>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isLoading}
+            >
+              {isLoading ? 'Signing in...' : 'Sign In'}
+            </Button>
+          </form>
+
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground">
+              Enter your username and password to sign in
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default Login;

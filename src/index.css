@@ -1,0 +1,146 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ERP Design System - Professional & Modern */
+
+@layer base {
+  :root {
+    /* Core Brand Colors */
+    --background: 0 0% 100%;
+    --foreground: 225 15% 20%;
+    
+    /* Surface Colors */
+    --card: 0 0% 100%;
+    --card-foreground: 225 15% 20%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 225 15% 20%;
+    
+    /* Brand Identity */
+    --primary: 231 49% 55%;
+    --primary-foreground: 0 0% 100%;
+    --primary-light: 231 65% 85%;
+    --primary-dark: 231 49% 45%;
+    
+    /* Status Colors */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
+    --danger: 0 84% 60%;
+    --danger-foreground: 0 0% 100%;
+    
+    /* Neutral Palette */
+    --secondary: 210 40% 97%;
+    --secondary-foreground: 225 15% 20%;
+    
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    
+    --accent: 210 40% 96%;
+    --accent-foreground: 225 15% 20%;
+    
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    
+    /* Interactive Elements */
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 231 49% 55%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+    
+    /* ERP Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(231 49% 55%), hsl(231 49% 45%));
+    --gradient-success: linear-gradient(135deg, hsl(142 76% 36%), hsl(142 76% 26%));
+    --gradient-warning: linear-gradient(135deg, hsl(38 92% 50%), hsl(38 92% 40%));
+    
+    /* Shadows */
+    --shadow-soft: 0 2px 8px hsl(231 15% 15% / 0.06);
+    --shadow-medium: 0 4px 16px hsl(231 15% 15% / 0.1);
+    --shadow-strong: 0 8px 32px hsl(231 15% 15% / 0.12);
+    
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .dark {
+    /* Core Dark Colors */
+    --background: 225 15% 8%;
+    --foreground: 210 40% 98%;
+    
+    /* Dark Surfaces */
+    --card: 225 15% 10%;
+    --card-foreground: 210 40% 98%;
+    
+    --popover: 225 15% 10%;
+    --popover-foreground: 210 40% 98%;
+    
+    /* Dark Brand */
+    --primary: 231 65% 65%;
+    --primary-foreground: 225 15% 8%;
+    --primary-light: 231 65% 75%;
+    --primary-dark: 231 65% 55%;
+    
+    /* Dark Status */
+    --success: 142 60% 55%;
+    --success-foreground: 225 15% 8%;
+    --warning: 38 85% 60%;
+    --warning-foreground: 225 15% 8%;
+    --danger: 0 75% 65%;
+    --danger-foreground: 225 15% 8%;
+    
+    /* Dark Neutrals */
+    --secondary: 225 15% 15%;
+    --secondary-foreground: 210 40% 98%;
+    
+    --muted: 225 15% 12%;
+    --muted-foreground: 215 20% 65%;
+    
+    --accent: 225 15% 15%;
+    --accent-foreground: 210 40% 98%;
+    
+    --destructive: 0 75% 65%;
+    --destructive-foreground: 225 15% 8%;
+    
+    /* Dark Interactive */
+    --border: 225 15% 20%;
+    --input: 225 15% 15%;
+    --ring: 231 65% 65%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
