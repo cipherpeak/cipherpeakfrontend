@@ -9,6 +9,8 @@ import { EyeIcon, EyeOffIcon } from 'lucide-react';
 import { loginFailure, loginSuccess, startLoading } from '@/Redux/slices/authSlice';
 import axiosInstance from '@/axios';
 import requests from '@/lib/urls';
+import logo from "../assets/cipher_scar[1].png"
+import logotwo from "../assets/cipher_peak full.png"
 
 
 const Login = () => {
@@ -68,10 +70,18 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-primary/5 flex items-center justify-center p-4">
-      <Card className="w-full max-w-lg shadow-lg">
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+        <img 
+          src={logotwo}
+          alt="Company Logo" 
+          className="opacity-5"
+        />
+      </div>
+      
+      <Card className="w-full max-w-lg shadow-lg ">
         <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-16 h-16 bg-primary rounded-2xl flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-2xl">ERP</span>
+          <div className="mx-auto w-16 h-16  rounded-2xl flex items-center justify-center">
+            <img src={logo} alt="" />
           </div>
           <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
           <CardDescription>
@@ -149,7 +159,8 @@ const Login = () => {
 
             <Button
               type="submit"
-              className="w-full"
+              className="w-full bg-[#4D4D4D] hover:bg-[#4D4D4D]"
+
               disabled={isLoading}
             >
               {isLoading ? 'Signing in...' : 'Sign In'}
