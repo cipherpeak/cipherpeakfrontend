@@ -28,49 +28,49 @@ const App = () => (
             <Route
               index
               element={
-                <PrivateRoute>
+                // <PrivateRoute>
                   <Dashboard />
-                </PrivateRoute>
+                // </PrivateRoute>
               }
             />
             <Route
               path="employees"
               element={
-                <PrivateRoute>
+                // <PrivateRoute>
                   <Employees />
-                </PrivateRoute>
+                // </PrivateRoute>
               }
             />
             <Route
               path="clients"
               element={
-                <PrivateRoute>
+                // <PrivateRoute>
                   <Clients />
-                </PrivateRoute>
+                // </PrivateRoute>
               }
             />
             <Route
               path="tasks"
               element={
-                <PrivateRoute>
+                // <PrivateRoute>
                   <Tasks />
-                </PrivateRoute>
+                // </PrivateRoute>
               }
             />
             <Route
               path="calendar"
               element={
-                <PrivateRoute>
+                // <PrivateRoute>
                   <Calendar />
-                </PrivateRoute>
+                // </PrivateRoute>
               }
             />
             <Route
               path="profile"
               element={
-                <PrivateRoute>
+                // <PrivateRoute>
                   <Profile />
-                </PrivateRoute>
+                // </PrivateRoute>
               }
             />
           </Route>
