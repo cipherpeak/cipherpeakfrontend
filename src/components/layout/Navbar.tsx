@@ -10,6 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Moon, Sun, User, Settings, LogOut, Bell } from 'lucide-react';
+import logo from "../../assets/cipher_peak full.png"
 
 interface NavbarProps {
   onThemeToggle: () => void;
@@ -23,10 +24,9 @@ const Navbar = ({ onThemeToggle, isDark }: NavbarProps) => {
     <nav className="h-16 bg-card border-b border-border flex items-center justify-between px-6 sticky top-0 z-50">
       <div className="flex items-center space-x-4">
         <div className="flex items-center space-x-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-primary-foreground font-bold text-sm">ERP</span>
+          <div className="w-40 h-40 rounded-lg flex items-center justify-center">
+            <img src={logo} alt="" />
           </div>
-          <h1 className="text-xl font-semibold text-foreground">Enterprise Suite</h1>
         </div>
       </div>
 
@@ -57,7 +57,7 @@ const Navbar = ({ onThemeToggle, isDark }: NavbarProps) => {
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-8 w-8">
                 <AvatarImage src="/placeholder-avatar.jpg" alt="User" />
-                <AvatarFallback className="bg-primary text-primary-foreground">JD</AvatarFallback>
+                <AvatarFallback className="bg-[#4D4D4D] hover:bg-[#4D4D4D] hover:text-[#ffff] text-white">JD</AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>

@@ -10,6 +10,7 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
+  IndianRupee, // Added DollarSign icon
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -25,6 +26,7 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
     { icon: UserCheck, label: 'Clients', path: '/clients' },
     { icon: CheckSquare, label: 'Tasks', path: '/tasks' },
     { icon: Calendar, label: 'Calendar', path: '/calendar' },
+    { icon: IndianRupee, label: 'Dolla', path: '/dolla' }, 
     { icon: BarChart3, label: 'Reports', path: '/reports' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];
@@ -62,7 +64,7 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
                     'flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                     'hover:bg-accent hover:text-accent-foreground',
                     isActive
-                      ? 'bg-primary text-primary-foreground'
+                      ? 'bg-[#4D4D4D] hover:bg-[#4D4D4D] hover:text-[#ffff] text-white'
                       : 'text-muted-foreground',
                     isCollapsed ? 'justify-center' : 'justify-start'
                   )

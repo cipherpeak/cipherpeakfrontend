@@ -1,46 +1,37 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { 
   Plus, 
   Search, 
-  MoreHorizontal, 
   Mail, 
   Phone, 
   Edit, 
-  Trash2, 
   Loader2,
   User,
   Calendar,
   MapPin,
-  DollarSign,
+  IndianRupee,
   FileText,
   Image,
   Download,
-  Eye,
   Building,
   IdCard,
   Shield,
-  Clock,
   Award,
   Briefcase,
-  Contact
+  Contact,
+  FileText as FileTextIcon
 } from 'lucide-react';
+
 import AddEmployeeModal from '@/components/modals/AddEmployeeModal';
 import axiosInstance from '@/axios';
 import requests from '@/lib/urls';
+import { EmployeeProfileCard } from '@/components/pagesComponent/EmployeesCom/EmployeeProfileCard';
 
 interface Employee {
   id: number;
@@ -68,6 +59,8 @@ interface Employee {
   emergency_contact_relation?: string;
   created_at?: string;
   updated_at?: string;
+  profile_image?: string;
+  profile_image_url?: string;
 }
 
 interface EmployeeDocument {
@@ -98,6 +91,18 @@ interface EmployeeDetails extends Employee {
   salary_history: any[];
 }
 
+const getStatusColor = (status: string) => {
+  switch (status.toLowerCase()) {
+    case 'active': return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-800';
+    case 'on_leave': 
+    case 'on leave': return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-300 dark:border-yellow-800';
+    case 'probation_period': return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:border-blue-800';
+    case 'notice_period': return 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-300 dark:border-orange-800';
+    case 'inactive': return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
+    default: return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
+  }
+};
+
 const Employees = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddEmployeeModalOpen, setIsAddEmployeeModalOpen] = useState(false);
@@ -125,6 +130,8 @@ const Employees = () => {
     }
   };
 
+  console.log(employees,"this is emply");
+  
   // Fetch employee details
   const fetchEmployeeDetails = async (employeeId: number) => {
     try {
@@ -191,28 +198,6 @@ const Employees = () => {
     employee.designation?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     employee.employee_id?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
-      case 'active': return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-800';
-      case 'on_leave': 
-      case 'on leave': return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-300 dark:border-yellow-800';
-      case 'probation_period': return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:border-blue-800';
-      case 'notice_period': return 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-300 dark:border-orange-800';
-      case 'inactive': return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
-    }
-  };
-
-  const formatStatus = (status: string) => {
-    return status.split('_').map(word => 
-      word.charAt(0).toUpperCase() + word.slice(1)
-    ).join(' ');
-  };
-
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
-  };
 
   const getFullName = (employee: Employee) => {
     return `${employee.first_name || ''} ${employee.last_name || ''}`.trim() || employee.username;
@@ -355,99 +340,16 @@ const Employees = () => {
               </CardContent>
             </Card>
 
-            {/* Employee Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+            {/* Employee Grid with New Profile Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {filteredEmployees.map((employee) => (
-                <Card key={employee.id} className="group hover:shadow-lg transition-all duration-300 border-l-4 border-l-primary/50">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-12 w-12 ring-2 ring-primary/20 group-hover:ring-primary/40 transition-all">
-                          <AvatarImage src="/placeholder-avatar.jpg" alt={getFullName(employee)} />
-                          <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground">
-                            {getInitials(employee.first_name, employee.last_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <CardTitle className="text-lg group-hover:text-primary transition-colors">
-                            {getFullName(employee)}
-                          </CardTitle>
-                          <CardDescription className="flex items-center gap-1">
-                            <Briefcase className="h-3 w-3" />
-                            {employee.designation || employee.role}
-                          </CardDescription>
-                        </div>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewDetails(employee)}>
-                            <Eye className="mr-2 h-4 w-4" />
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEditEmployee(employee)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          <DropdownMenuItem 
-                            className="text-destructive"
-                            onClick={() => handleDeleteEmployee(employee.id)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Building className="h-3 w-3" />
-                          Department
-                        </span>
-                        <span className="text-sm font-medium">{employee.department || 'N/A'}</span>
-                      </div>
-                      
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground flex items-center gap-1">
-                          <Shield className="h-3 w-3" />
-                          Role
-                        </span>
-                        <span className="text-sm font-medium capitalize">
-                          {employee.role.replace('_', ' ')}
-                        </span>
-                      </div>
-
-                      <Separator />
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Status</span>
-                        <Badge variant="outline" className={getStatusColor(employee.current_status)}>
-                          {formatStatus(employee.current_status)}
-                        </Badge>
-                      </div>
-
-                      <div className="space-y-2 pt-2">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                          <span className="text-muted-foreground truncate">{employee.email}</span>
-                        </div>
-                        {employee.phone_number && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                            <span className="text-muted-foreground">{employee.phone_number}</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                <EmployeeProfileCard
+                  key={employee.id}
+                  employee={employee}
+                  onViewDetails={handleViewDetails}
+                  onEdit={handleEditEmployee}
+                  onDelete={handleDeleteEmployee}
+                />
               ))}
             </div>
 
@@ -496,9 +398,9 @@ const Employees = () => {
                   <CardContent className="pt-6">
                     <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
                       <Avatar className="h-20 w-20 ring-4 ring-background shadow-lg">
-                        <AvatarImage src="/placeholder-avatar.jpg" alt={getFullName(selectedEmployee)} />
+                        <AvatarImage src={selectedEmployee.profile_image_url || "/placeholder-avatar.jpg"} alt={getFullName(selectedEmployee)} />
                         <AvatarFallback className="text-lg bg-gradient-to-br from-primary to-primary/70 text-primary-foreground">
-                          {getInitials(selectedEmployee.first_name, selectedEmployee.last_name)}
+                          {getFullName(selectedEmployee).split(' ').map(n => n[0]).join('').toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1">
@@ -522,7 +424,7 @@ const Employees = () => {
                             </div>
                           </div>
                           <Badge variant="outline" className={`mt-4 lg:mt-0 text-base py-1.5 px-3 ${getStatusColor(selectedEmployee.current_status)}`}>
-                            {formatStatus(selectedEmployee.current_status)}
+                            {selectedEmployee.current_status.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                           </Badge>
                         </div>
                       </div>
@@ -543,9 +445,9 @@ const Employees = () => {
                     value={formatDate(selectedEmployee.joining_date)}
                   />
                   <StatCard
-                    icon={DollarSign}
+                    icon={IndianRupee}
                     label="Salary"
-                    value={selectedEmployee.salary ? `$${selectedEmployee.salary}` : 'N/A'}
+                    value={selectedEmployee.salary ? `₹${selectedEmployee.salary}` : 'N/A'}
                   />
                   <StatCard
                     icon={Award}
@@ -555,6 +457,7 @@ const Employees = () => {
                   />
                 </div>
 
+                {/* Rest of the detail view tabs */}
                 <Tabs defaultValue="personal" className="w-full">
                   <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto p-1 bg-muted/50">
                     <TabsTrigger value="personal" className="flex items-center gap-2 py-3">

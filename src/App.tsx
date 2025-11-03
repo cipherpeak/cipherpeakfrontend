@@ -13,6 +13,7 @@ import Calendar from "./pages/Calendar";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import PrivateRoute from "./lib/PrivateRoute";
+import Dolla from "./pages/Dolla";
 
 const queryClient = new QueryClient();
 
@@ -28,49 +29,57 @@ const App = () => (
             <Route
               index
               element={
-                // <PrivateRoute>
+               <PrivateRoute>
                   <Dashboard />
-                // </PrivateRoute>
+              </PrivateRoute>
               }
             />
             <Route
               path="employees"
               element={
-                // <PrivateRoute>
+                <PrivateRoute>
                   <Employees />
-                // </PrivateRoute>
+                </PrivateRoute>
               }
             />
             <Route
               path="clients"
               element={
-                // <PrivateRoute>
+                <PrivateRoute>
                   <Clients />
-                // </PrivateRoute>
+                </PrivateRoute>
               }
             />
             <Route
               path="tasks"
               element={
-                // <PrivateRoute>
+                <PrivateRoute>
                   <Tasks />
-                // </PrivateRoute>
+                </PrivateRoute>
               }
             />
             <Route
               path="calendar"
               element={
-                // <PrivateRoute>
+                <PrivateRoute>
                   <Calendar />
-                // </PrivateRoute>
+                </PrivateRoute>
               }
             />
             <Route
               path="profile"
               element={
-                // <PrivateRoute>
+                <PrivateRoute>
                   <Profile />
-                // </PrivateRoute>
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="dolla"
+              element={
+                <PrivateRoute>
+                  <Dolla />
+                </PrivateRoute>
               }
             />
           </Route>

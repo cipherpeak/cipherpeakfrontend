@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,70 +25,291 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { format } from 'date-fns';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Loader2, Building } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import axiosInstance from '@/axios';
+import requests from '@/lib/urls';
+import { useToast } from '@/components/ui/use-toast';
+
+interface Employee {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  designation: string;
+  department: string;
+}
+
+interface Client {
+  id: number;
+  client_name: string;
+  email: string;
+  phone: string;
+  company: string;
+  is_active_client?: boolean;
+}
 
 interface AddTaskModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onTaskCreated?: () => void;
+  onTaskUpdated?: () => void;
+  taskToEdit?: any;
+  mode?: 'add' | 'edit';
 }
 
-const AddTaskModal = ({ open, onOpenChange }: AddTaskModalProps) => {
+const AddTaskModal = ({ 
+  open, 
+  onOpenChange, 
+  onTaskCreated, 
+  onTaskUpdated,
+  taskToEdit,
+  mode = 'add'
+}: AddTaskModalProps) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     assignee: '',
-    priority: '',
+    client: '',
+    priority: 'medium',
     status: 'pending',
-    tags: '',
+    task_type: '',
   });
   const [dueDate, setDueDate] = useState<Date>();
+  const [scheduledDate, setScheduledDate] = useState<Date>();
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+  const [clientsLoading, setClientsLoading] = useState(false);
+  const { toast } = useToast();
 
-  const employees = [
-    { id: '1', name: 'John Doe' },
-    { id: '2', name: 'Jane Smith' },
-    { id: '3', name: 'Mike Wilson' },
-    { id: '4', name: 'Sarah Connor' },
-    { id: '5', name: 'David Lee' },
-    { id: '6', name: 'Emma Brown' },
+  // Task type options from your backend model
+  const taskTypeOptions = [
+    { value: 'seo', label: 'SEO' },
+    { value: 'social_media', label: 'Social Media' },
+    { value: 'content', label: 'Content Creation' },
+    { value: 'ppc', label: 'PPC Campaign' },
+    { value: 'website', label: 'Website Development' },
+    { value: 'email', label: 'Email Marketing' },
+    { value: 'analytics', label: 'Analytics' },
+    { value: 'client_meeting', label: 'Client Meeting' },
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Priority options from your backend model
+  const priorityOptions = [
+    { value: 'low', label: 'Low' },
+    { value: 'medium', label: 'Medium' },
+    { value: 'high', label: 'High' },
+  ];
+
+  // Status options from your backend model
+  const statusOptions = [
+    { value: 'pending', label: 'Pending' },
+    { value: 'in_progress', label: 'In Progress' },
+    { value: 'completed', label: 'Completed' },
+    { value: 'scheduled', label: 'Scheduled' },
+  ];
+
+  // Fetch employees for assignee dropdown
+  const fetchEmployees = async () => {
+    try {
+      setEmployeesLoading(true);
+      const response = await axiosInstance.get(requests.FetchEmployees);
+      setEmployees(response.data.employees || response.data);
+    } catch (error) {
+      console.error('Error fetching employees:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load employees',
+        variant: 'destructive',
+      });
+    } finally {
+      setEmployeesLoading(false);
+    }
+  };
+
+  // Fetch clients for client dropdown
+  const fetchClients = async () => {
+    try {
+      setClientsLoading(true);
+      const response = await axiosInstance.get(requests.FetchClients); // Make sure you have this URL in your requests
+      setClients(response.data.clients || response.data);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load clients',
+        variant: 'destructive',
+      });
+    } finally {
+      setClientsLoading(false);
+    }
+  };
+
+  // Initialize form when modal opens or taskToEdit changes
+  useEffect(() => {
+    if (open) {
+      fetchEmployees();
+      fetchClients();
+      
+      if (mode === 'edit' && taskToEdit) {
+        // Pre-fill form with task data for editing
+        setFormData({
+          title: taskToEdit.title || '',
+          description: taskToEdit.description || '',
+          assignee: taskToEdit.assignee?.toString() || taskToEdit.assignee_details?.id?.toString() || '',
+          client: taskToEdit.client?.toString() || taskToEdit.client_details?.id?.toString() || '',
+          priority: taskToEdit.priority || 'medium',
+          status: taskToEdit.status || 'pending',
+          task_type: taskToEdit.task_type || '',
+        });
+        
+        if (taskToEdit.due_date) {
+          setDueDate(new Date(taskToEdit.due_date));
+        }
+        
+        if (taskToEdit.scheduled_date) {
+          setScheduledDate(new Date(taskToEdit.scheduled_date));
+        }
+      } else {
+        // Reset form for new task
+        setFormData({
+          title: '',
+          description: '',
+          assignee: '',
+          client: '',
+          priority: 'medium',
+          status: 'pending',
+          task_type: '',
+        });
+        setDueDate(undefined);
+        setScheduledDate(undefined);
+      }
+    }
+  }, [open, mode, taskToEdit]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle task creation logic here
-    console.log('Creating task:', { ...formData, dueDate });
     
-    // Reset form
+    if (!formData.assignee) {
+      toast({
+        title: 'Error',
+        description: 'Please select an assignee',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!formData.client) {
+      toast({
+        title: 'Error',
+        description: 'Please select a client',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!dueDate) {
+      toast({
+        title: 'Error',
+        description: 'Please select a due date',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      const taskData = {
+        title: formData.title,
+        description: formData.description,
+        assignee: parseInt(formData.assignee),
+        client: parseInt(formData.client),
+        priority: formData.priority,
+        status: formData.status,
+        task_type: formData.task_type,
+        due_date: dueDate.toISOString(),
+        ...(scheduledDate && { scheduled_date: scheduledDate.toISOString() }),
+      };
+
+      if (mode === 'edit' && taskToEdit) {
+        // Update existing task
+        await axiosInstance.put(`${requests.FetchTasks}${taskToEdit.id}/`, taskData);
+        toast({
+          title: 'Success',
+          description: 'Task updated successfully',
+        });
+        if (onTaskUpdated) onTaskUpdated();
+      } else {
+        // Create new task
+        await axiosInstance.post(requests.CreateTask, taskData);
+        toast({
+          title: 'Success',
+          description: 'Task created successfully',
+        });
+        if (onTaskCreated) onTaskCreated();
+      }
+
+      // Reset form and close modal
+      resetForm();
+      onOpenChange(false);
+      
+    } catch (error: any) {
+      console.error('Error saving task:', error);
+      toast({
+        title: 'Error',
+        description: error.response?.data?.error || `Failed to ${mode === 'edit' ? 'update' : 'create'} task`,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetForm = () => {
     setFormData({
       title: '',
       description: '',
       assignee: '',
-      priority: '',
+      client: '',
+      priority: 'medium',
       status: 'pending',
-      tags: '',
+      task_type: '',
     });
     setDueDate(undefined);
-    onOpenChange(false);
+    setScheduledDate(undefined);
   };
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleClose = () => {
+    resetForm();
+    onOpenChange(false);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Task</DialogTitle>
+          <DialogTitle>
+            {mode === 'edit' ? 'Edit Task' : 'Create New Task'}
+          </DialogTitle>
           <DialogDescription>
-            Add a new task to assign to team members with deadlines and priorities.
+            {mode === 'edit' 
+              ? 'Update the task details, assignee, and client information.'
+              : 'Add a new task to assign to team members with deadlines, priorities, and client association.'
+            }
           </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4">
             <div className="space-y-2">
-              <Label htmlFor="title">Task Title</Label>
+              <Label htmlFor="title">Task Title *</Label>
               <Input
                 id="title"
                 placeholder="Enter task title..."
@@ -111,18 +332,18 @@ const AddTaskModal = ({ open, onOpenChange }: AddTaskModalProps) => {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="assignee">Assign To</Label>
+                <Label htmlFor="task_type">Task Type</Label>
                 <Select
-                  value={formData.assignee}
-                  onValueChange={(value) => handleInputChange('assignee', value)}
+                  value={formData.task_type}
+                  onValueChange={(value) => handleInputChange('task_type', value)}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select team member" />
+                    <SelectValue placeholder="Select task type" />
                   </SelectTrigger>
                   <SelectContent>
-                    {employees.map((employee) => (
-                      <SelectItem key={employee.id} value={employee.id}>
-                        {employee.name}
+                    {taskTypeOptions.map((type) => (
+                      <SelectItem key={type.value} value={type.value}>
+                        {type.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -139,9 +360,11 @@ const AddTaskModal = ({ open, onOpenChange }: AddTaskModalProps) => {
                     <SelectValue placeholder="Select priority" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
+                    {priorityOptions.map((priority) => (
+                      <SelectItem key={priority.value} value={priority.value}>
+                        {priority.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -158,16 +381,89 @@ const AddTaskModal = ({ open, onOpenChange }: AddTaskModalProps) => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="in-progress">In Progress</SelectItem>
-                    <SelectItem value="scheduled">Scheduled</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
+                    {statusOptions.map((status) => (
+                      <SelectItem key={status.value} value={status.value}>
+                        {status.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-2">
-                <Label>Due Date</Label>
+                <Label htmlFor="assignee">Assign To *</Label>
+                <Select
+                  value={formData.assignee}
+                  onValueChange={(value) => handleInputChange('assignee', value)}
+                  disabled={employeesLoading}
+                >
+                  <SelectTrigger>
+                    {employeesLoading ? (
+                      <span>Loading employees...</span>
+                    ) : (
+                      <SelectValue placeholder="Select team member" />
+                    )}
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employees.map((employee) => (
+                      <SelectItem key={employee.id} value={employee.id.toString()}>
+                        <div className="flex flex-col">
+                          <span>{employee.first_name} {employee.last_name}</span>
+                          {employee.designation && (
+                            <span className="text-xs text-muted-foreground">
+                              {employee.designation}
+                            </span>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="client">Client *</Label>
+              <Select
+                value={formData.client}
+                onValueChange={(value) => handleInputChange('client', value)}
+                disabled={clientsLoading}
+              >
+                <SelectTrigger>
+                  {clientsLoading ? (
+                    <span>Loading clients...</span>
+                  ) : (
+                    <SelectValue placeholder="Select client" />
+                  )}
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id.toString()}>
+                      <div className="flex items-center gap-2">
+                        <Building className="h-4 w-4 text-muted-foreground" />
+                        <div className="flex flex-col">
+                          <span>{client.client_name}</span>
+                          {client.company && (
+                            <span className="text-xs text-muted-foreground">
+                              {client.company}
+                            </span>
+                          )}
+                          {client.is_active_client !== undefined && (
+                            <span className={`text-xs ${client.is_active_client ? 'text-green-600' : 'text-red-600'}`}>
+                              {client.is_active_client ? 'Active' : 'Inactive'}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Due Date *</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -192,19 +488,37 @@ const AddTaskModal = ({ open, onOpenChange }: AddTaskModalProps) => {
                   </PopoverContent>
                 </Popover>
               </div>
+
+              <div className="space-y-2">
+                <Label>Scheduled Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !scheduledDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {scheduledDate ? format(scheduledDate, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={scheduledDate}
+                      onSelect={setScheduledDate}
+                      initialFocus
+                      className="pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="tags">Tags</Label>
-              <Input
-                id="tags"
-                placeholder="Enter tags separated by commas..."
-                value={formData.tags}
-                onChange={(e) => handleInputChange('tags', e.target.value)}
-              />
-              <p className="text-xs text-muted-foreground">
-                Separate multiple tags with commas (e.g., urgent, client-work, review)
-              </p>
+            <div className="text-xs text-muted-foreground">
+              <p>* Required fields</p>
             </div>
           </div>
 
@@ -212,13 +526,19 @@ const AddTaskModal = ({ open, onOpenChange }: AddTaskModalProps) => {
             <Button
               type="button"
               variant="outline"
-              onClick={() => onOpenChange(false)}
+              onClick={handleClose}
               className="w-full sm:w-auto"
+              disabled={loading}
             >
               Cancel
             </Button>
-            <Button type="submit" className="w-full sm:w-auto">
-              Create Task
+            <Button 
+              type="submit" 
+              className="w-full sm:w-auto"
+              disabled={loading || !formData.title || !formData.assignee || !formData.client || !dueDate}
+            >
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {mode === 'edit' ? 'Update Task' : 'Create Task'}
             </Button>
           </DialogFooter>
         </form>
