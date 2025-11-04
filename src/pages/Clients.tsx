@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,26 +23,31 @@ import {
   Loader2,
   Building,
   MapPin,
-  DollarSign,
   FileText,
-  Image,
-  Download,
   Eye,
   IndianRupee,
-  Users,
-  Calendar,
-  Globe,
   Contact,
   ArrowLeft,
   CreditCard,
-  Clock,
-  AlertTriangle,
   CheckCircle2,
   CalendarDays
 } from 'lucide-react';
 import AddClientModal from '@/components/modals/AddClientModal';
 import axiosInstance from '@/axios';
 import requests from '@/lib/urls';
+import ClientDetails from '@/components/pagesComponent/ClientCom/ClientDetails';
+
+interface ClientDocument {
+  id: number;
+  client: number;
+  document_type: string;
+  title: string;
+  description: string;
+  file: string;
+  file_url: string;
+  uploaded_at: string;
+  uploaded_by: number;
+}
 
 interface Client {
   id: number;
@@ -86,26 +91,14 @@ interface Client {
   payment_status_display?: string;
 }
 
-interface ClientDocument {
-  id: number;
-  client: number;
-  document_type: string;
-  title: string;
-  description: string;
-  file: string;
-  file_url: string;
-  uploaded_at: string;
-  uploaded_by: number;
-}
-
-interface ClientDetails extends Client {
+interface ClientDetailsType extends Client {
   documents: ClientDocument[];
 }
 
 const Clients = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<ClientDetails | null>(null);
+  const [selectedClient, setSelectedClient] = useState<ClientDetailsType | null>(null);
   const [clientToEdit, setClientToEdit] = useState<Client | null>(null);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [clients, setClients] = useState<Client[]>([]);
@@ -135,7 +128,7 @@ const Clients = () => {
       setDetailLoading(true);
       const response = await axiosInstance.get(`${requests.FetchClients}${clientId}/`);
       
-      const clientDetails: ClientDetails = {
+      const clientDetails: ClientDetailsType = {
         ...response.data,
         documents: response.data.documents || []
       };
@@ -220,6 +213,10 @@ const Clients = () => {
   };
 
   const handleDownloadFile = (fileUrl: string, fileName: string) => {
+    console.log(fileUrl);
+    console.log(fileName);
+    
+
     const link = document.createElement('a');
     link.href = fileUrl;
     link.download = fileName;
@@ -537,7 +534,7 @@ const Clients = () => {
                           <IndianRupee className="h-3 w-3" />
                           Monthly Retainer
                         </span>
-                        <span className="text-sm font-medium text-success">
+                        <span className="text-sm font-medium text-green-600">
                           {client.monthly_retainer ? `₹${client.monthly_retainer}` : 'Not set'}
                         </span>
                       </div>
@@ -605,434 +602,16 @@ const Clients = () => {
             )}
           </TabsContent>
 
-          {/* Client Detail View */}
+          {/* Client Details View */}
           <TabsContent value="details" className="mt-0">
-            {detailLoading ? (
-              <div className="flex items-center justify-center min-h-[400px]">
-                <div className="text-center">
-                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-                  <p className="text-muted-foreground">Loading client details...</p>
-                </div>
-              </div>
-            ) : selectedClient ? (
-              <div className="space-y-6">
-                {/* Client Header */}
-                <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
-                  <CardContent className="pt-6">
-                    <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
-                      <Avatar className="h-20 w-20 ring-4 ring-background shadow-lg">
-                        <AvatarFallback className="text-lg bg-gradient-to-br from-primary to-primary/70 text-primary-foreground">
-                          {getInitials(selectedClient.client_name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-                          <div>
-                            <h1 className="text-3xl font-bold">{selectedClient.client_name}</h1>
-                            <div className="flex flex-wrap items-center gap-3 mt-2">
-                              <div className="flex items-center gap-2">
-                                <Contact className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-lg text-muted-foreground">
-                                  {getContactPerson(selectedClient)}
-                                </span>
-                              </div>
-                              <span className="text-muted-foreground">•</span>
-                              <div className="flex items-center gap-2">
-                                <Building className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-lg text-muted-foreground">
-                                  {selectedClient.industry || 'Industry not specified'}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex flex-col gap-2 mt-4 lg:mt-0">
-                            <Badge variant="outline" className={`text-base py-1.5 px-3 ${getStatusColor(selectedClient.status)}`}>
-                              {formatStatus(selectedClient.status)}
-                            </Badge>
-                            <Badge variant="outline" className={`text-base py-1.5 px-3 ${getPaymentStatusColor(selectedClient.current_month_payment_status)}`}>
-                              Payment: {formatStatus(selectedClient.current_month_payment_status)}
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Quick Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <StatCard
-                    icon={FileText}
-                    label="Total Content/Month"
-                    value={getTotalContent(selectedClient).toString()}
-                  />
-                  <StatCard
-                    icon={IndianRupee}
-                    label="Monthly Retainer"
-                    value={selectedClient.monthly_retainer ? `₹${selectedClient.monthly_retainer}` : 'Not set'}
-                  />
-                  <StatCard
-                    icon={Calendar}
-                    label="Next Payment"
-                    value={selectedClient.next_payment_date ? formatDate(selectedClient.next_payment_date) : 'Not set'}
-                  />
-                  <StatCard
-                    icon={MapPin}
-                    label="Location"
-                    value={getLocation(selectedClient)}
-                  />
-                </div>
-
-                <Tabs defaultValue="overview" className="w-full">
-                  <TabsList className="grid w-full grid-cols-4 h-auto p-1 bg-muted/50">
-                    <TabsTrigger value="overview" className="flex items-center gap-2 py-3">
-                      <Building className="h-4 w-4" />
-                      <span>Overview</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="payment" className="flex items-center gap-2 py-3">
-                      <CreditCard className="h-4 w-4" />
-                      <span>Payment</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="content" className="flex items-center gap-2 py-3">
-                      <FileText className="h-4 w-4" />
-                      <span>Content</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="documents" className="flex items-center gap-2 py-3">
-                      <FileText className="h-4 w-4" />
-                      <span>Documents</span>
-                    </TabsTrigger>
-                  </TabsList>
-
-                  {/* Overview Tab */}
-                  <TabsContent value="overview" className="space-y-6 mt-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <Contact className="h-5 w-5" />
-                            Contact Information
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          {selectedClient.contact_email && (
-                            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                              <Mail className="h-5 w-5 text-primary" />
-                              <div>
-                                <p className="text-sm text-muted-foreground">Email</p>
-                                <p className="font-medium">{selectedClient.contact_email}</p>
-                              </div>
-                            </div>
-                          )}
-                          {selectedClient.contact_phone && (
-                            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                              <Phone className="h-5 w-5 text-primary" />
-                              <div>
-                                <p className="text-sm text-muted-foreground">Phone</p>
-                                <p className="font-medium">{selectedClient.contact_phone}</p>
-                              </div>
-                            </div>
-                          )}
-                          {selectedClient.website && (
-                            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                              <Globe className="h-5 w-5 text-primary" />
-                              <div>
-                                <p className="text-sm text-muted-foreground">Website</p>
-                                <a 
-                                  href={selectedClient.website} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="font-medium text-primary hover:underline"
-                                >
-                                  {selectedClient.website}
-                                </a>
-                              </div>
-                            </div>
-                          )}
-                          <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                            <MapPin className="h-5 w-5 text-primary mt-0.5" />
-                            <div>
-                              <p className="text-sm text-muted-foreground">Location</p>
-                              <p className="font-medium">
-                                {getLocation(selectedClient)}
-                                {selectedClient.address && (
-                                  <>
-                                    <br />
-                                    <span className="text-sm text-muted-foreground">
-                                      {selectedClient.address}
-                                    </span>
-                                  </>
-                                )}
-                              </p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <Building className="h-5 w-5" />
-                            Company Information
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <p className="text-sm text-muted-foreground">Industry</p>
-                              <Badge className={`mt-1 ${getIndustryColor(selectedClient.industry)}`}>
-                                {selectedClient.industry || 'Not specified'}
-                              </Badge>
-                            </div>
-                            <div>
-                              <p className="text-sm text-muted-foreground">Client Type</p>
-                              <Badge variant="outline" className="mt-1">
-                                {selectedClient.client_type}
-                              </Badge>
-                            </div>
-                          </div>
-                          
-                          <div className="grid grid-cols-2 gap-4">
-                            <div>
-                              <p className="text-sm text-muted-foreground">Content/Month</p>
-                              <p className="font-medium text-2xl mt-1">{getTotalContent(selectedClient)}</p>
-                            </div>
-                            <div>
-                              <p className="text-sm text-muted-foreground">Monthly Retainer</p>
-                              <p className="font-medium text-2xl text-success mt-1">
-                                {selectedClient.monthly_retainer ? `$${selectedClient.monthly_retainer}` : 'Not set'}
-                              </p>
-                            </div>
-                          </div>
-
-                          {selectedClient.description && (
-                            <div>
-                              <p className="text-sm text-muted-foreground">Description</p>
-                              <p className="mt-1 text-sm">{selectedClient.description}</p>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </TabsContent>
-
-                  {/* Payment Tab */}
-                  <TabsContent value="payment" className="space-y-6 mt-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <CreditCard className="h-5 w-5" />
-                          Payment Information
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                              <span className="text-sm text-muted-foreground">Payment Cycle</span>
-                              <span className="font-medium">{getPaymentCycleDisplay(selectedClient.payment_cycle)}</span>
-                            </div>
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                              <span className="text-sm text-muted-foreground">Payment Date</span>
-                              <span className="font-medium">{getPaymentDateDisplay(selectedClient.payment_date)} of month</span>
-                            </div>
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                              <span className="text-sm text-muted-foreground">Current Status</span>
-                              <Badge className={getPaymentStatusColor(selectedClient.current_month_payment_status)}>
-                                {formatStatus(selectedClient.current_month_payment_status)}
-                              </Badge>
-                            </div>
-                          </div>
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                              <span className="text-sm text-muted-foreground">Next Payment Date</span>
-                              <span className="font-medium">
-                                {selectedClient.next_payment_date ? formatDate(selectedClient.next_payment_date) : 'Not set'}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                              <span className="text-sm text-muted-foreground">Last Payment Date</span>
-                              <span className="font-medium">
-                                {selectedClient.last_payment_date ? formatDate(selectedClient.last_payment_date) : 'N/A'}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                              <span className="text-sm text-muted-foreground">Monthly Retainer</span>
-                              <span className="font-medium text-success">
-                                {selectedClient.monthly_retainer ? `$${selectedClient.monthly_retainer}` : 'Not set'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {selectedClient.current_month_payment_status === 'pending' && (
-                          <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <Clock className="h-5 w-5 text-yellow-600" />
-                              <div>
-                                <p className="font-medium text-yellow-800">Payment Pending</p>
-                                <p className="text-sm text-yellow-700">
-                                  This client's payment for the current month is pending.
-                                  {selectedClient.next_payment_date && (
-                                    <> Next payment is due on {formatDate(selectedClient.next_payment_date)}.</>
-                                  )}
-                                </p>
-                              </div>
-                            </div>
-                            <Button 
-                              className="mt-3 bg-yellow-600 hover:bg-yellow-700"
-                              onClick={() => handleMarkPaymentPaid(selectedClient.id)}
-                            >
-                              <CheckCircle2 className="h-4 w-4 mr-2" />
-                              Mark as Paid
-                            </Button>
-                          </div>
-                        )}
-
-                        {selectedClient.current_month_payment_status === 'overdue' && (
-                          <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <AlertTriangle className="h-5 w-5 text-red-600" />
-                              <div>
-                                <p className="font-medium text-red-800">Payment Overdue</p>
-                                <p className="text-sm text-red-700">
-                                  This client's payment is overdue. Please follow up immediately.
-                                </p>
-                              </div>
-                            </div>
-                            <Button 
-                              className="mt-3 bg-red-600 hover:bg-red-700"
-                              onClick={() => handleMarkPaymentPaid(selectedClient.id)}
-                            >
-                              <CheckCircle2 className="h-4 w-4 mr-2" />
-                              Mark as Paid
-                            </Button>
-                          </div>
-                        )}
-
-                        {selectedClient.current_month_payment_status === 'paid' && (
-                          <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <CheckCircle2 className="h-5 w-5 text-green-600" />
-                              <div>
-                                <p className="font-medium text-green-800">Payment Received</p>
-                                <p className="text-sm text-green-700">
-                                  Payment for the current month has been received.
-                                  {selectedClient.last_payment_date && (
-                                    <> Last payment was on {formatDate(selectedClient.last_payment_date)}.</>
-                                  )}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  {/* Content Tab */}
-                  <TabsContent value="content" className="space-y-6 mt-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <FileText className="h-5 w-5" />
-                          Monthly Content Requirements
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          <Card className="text-center p-4">
-                            <FileText className="h-8 w-8 mx-auto mb-2 text-blue-500" />
-                            <p className="text-2xl font-bold">{selectedClient.videos_per_month}</p>
-                            <p className="text-sm text-muted-foreground">Videos/Month</p>
-                          </Card>
-                          <Card className="text-center p-4">
-                            <Image className="h-8 w-8 mx-auto mb-2 text-green-500" />
-                            <p className="text-2xl font-bold">{selectedClient.posters_per_month}</p>
-                            <p className="text-sm text-muted-foreground">Posters/Month</p>
-                          </Card>
-                          <Card className="text-center p-4">
-                            <FileText className="h-8 w-8 mx-auto mb-2 text-purple-500" />
-                            <p className="text-2xl font-bold">{selectedClient.reels_per_month}</p>
-                            <p className="text-sm text-muted-foreground">Reels/Month</p>
-                          </Card>
-                          <Card className="text-center p-4">
-                            <Image className="h-8 w-8 mx-auto mb-2 text-orange-500" />
-                            <p className="text-2xl font-bold">{selectedClient.stories_per_month}</p>
-                            <p className="text-sm text-muted-foreground">Stories/Month</p>
-                          </Card>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  {/* Documents Tab */}
-                  <TabsContent value="documents" className="space-y-6 mt-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <FileText className="h-5 w-5" />
-                          Documents ({selectedClient.documents?.length || 0})
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        {selectedClient.documents && selectedClient.documents.length > 0 ? (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {selectedClient.documents.map((doc) => (
-                              <Card key={doc.id} className="group hover:shadow-md transition-shadow">
-                                <CardContent className="p-4">
-                                  <div className="flex items-start gap-3">
-                                    <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900">
-                                      <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <p className="font-medium truncate">{doc.title}</p>
-                                      <p className="text-sm text-muted-foreground">
-                                        {doc.document_type} • {formatDate(doc.uploaded_at)}
-                                      </p>
-                                      {doc.description && (
-                                        <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                                          {doc.description}
-                                        </p>
-                                      )}
-                                    </div>
-                                  </div>
-                                  <div className="flex items-center justify-end mt-4">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleDownloadFile(doc.file, doc.title)}
-                                      className="flex items-center gap-2"
-                                    >
-                                      <Download className="h-4 w-4" />
-                                      Download
-                                    </Button>
-                                  </div>
-                                </CardContent>
-                              </Card>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                            <p>No documents available</p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-                </Tabs>
-              </div>
-            ) : (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <Building className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-muted-foreground">No client data available</p>
-                  <Button onClick={handleBackToList} className="mt-4">
-                    Back to Client List
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+            <ClientDetails
+              selectedClient={selectedClient}
+              detailLoading={detailLoading}
+              onBackToList={handleBackToList}
+              onEditClient={handleEditClient}
+              onMarkPaymentPaid={handleMarkPaymentPaid}
+              onDownloadFile={handleDownloadFile}
+            />
           </TabsContent>
         </Tabs>
       </div>

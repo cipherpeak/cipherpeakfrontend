@@ -11,11 +11,13 @@ const requests = {
     CreateClient :`${backendUrl}/client/create/`,
     UpdateClient :`${backendUrl}/client/create/`,
     EarlyPaid:`${backendUrl}/client/earlypaid/`,
+    CreateClientDocuments:`${backendUrl}/client/documents/`,
 
     // Add tasks endpoints
     FetchTasks: `${backendUrl}/tasks/create/`,
     CreateTask: `${backendUrl}/tasks/create/`,
     UpdateTask: `${backendUrl}/tasks/create/`,
+
 
 
     FetchEvents: `${backendUrl}/event/events/`,
