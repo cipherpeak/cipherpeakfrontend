@@ -3,7 +3,7 @@ import { jwtDecode } from "jwt-decode";
 import { store } from "./Redux/Store"; 
 import dayjs from "dayjs";
 
-const baseURL = "http://127.0.0.1:8000";
+const baseURL = "http://72.61.171.1:8002";
 
 const getAuthTokens = () => {
   const state = store.getState();
