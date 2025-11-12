@@ -1,3 +1,3 @@
 
 
-export const backendUrl = 'http://72.61.171.1:8002';
+export const backendUrl = 'https://www.cipher-peak.com/';
