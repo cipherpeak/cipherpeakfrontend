@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { requests } from '@/lib/urls';
+import axiosInstance from '@/axios/axios';
 import {
   Dialog,
   DialogContent,
@@ -27,8 +29,10 @@ import {
 import { format } from 'date-fns';
 import { CalendarIcon, Loader2, Building } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import axiosInstance from '@/axios';
-import requests from '@/lib/urls';
+
+// Reverting to static mode
+
+
 import { useToast } from '@/components/ui/use-toast';
 
 interface Employee {
@@ -58,10 +62,10 @@ interface AddTaskModalProps {
   mode?: 'add' | 'edit';
 }
 
-const AddTaskModal = ({ 
-  open, 
-  onOpenChange, 
-  onTaskCreated, 
+const AddTaskModal = ({
+  open,
+  onOpenChange,
+  onTaskCreated,
   onTaskUpdated,
   taskToEdit,
   mode = 'add'
@@ -111,19 +115,33 @@ const AddTaskModal = ({
     { value: 'scheduled', label: 'Scheduled' },
   ];
 
+
+
+
+
   // Fetch employees for assignee dropdown
   const fetchEmployees = async () => {
+    setEmployeesLoading(true);
     try {
-      setEmployeesLoading(true);
-      const response = await axiosInstance.get(requests.FetchEmployees);
-      setEmployees(response.data.employees || response.data);
+      const response = await axiosInstance.get(requests.EmployeeList);
+      // Handle pagination or direct array if applicable (similar to Employees.tsx logic)
+      const data = response.data;
+      let employeeList: Employee[] = [];
+
+      if (Array.isArray(data)) {
+        employeeList = data;
+      } else if (data.results && Array.isArray(data.results)) {
+        employeeList = data.results;
+      } else if (data.data && Array.isArray(data.data)) {
+        employeeList = data.data;
+      } else if (data.employees && Array.isArray(data.employees)) {
+        employeeList = data.employees;
+      }
+
+      setEmployees(employeeList);
     } catch (error) {
-      console.error('Error fetching employees:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load employees',
-        variant: 'destructive',
-      });
+      console.error("Error fetching employees:", error);
+      toast({ title: "Error", description: "Failed to load employees", variant: "destructive" });
     } finally {
       setEmployeesLoading(false);
     }
@@ -131,17 +149,13 @@ const AddTaskModal = ({
 
   // Fetch clients for client dropdown
   const fetchClients = async () => {
+    setClientsLoading(true);
     try {
-      setClientsLoading(true);
-      const response = await axiosInstance.get(requests.FetchClients); // Make sure you have this URL in your requests
-      setClients(response.data.clients || response.data);
+      const response = await axiosInstance.get(requests.ClientList);
+      setClients(response.data);
     } catch (error) {
-      console.error('Error fetching clients:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load clients',
-        variant: 'destructive',
-      });
+      console.error("Error fetching clients:", error);
+      toast({ title: "Error", description: "Failed to load clients", variant: "destructive" });
     } finally {
       setClientsLoading(false);
     }
@@ -150,9 +164,9 @@ const AddTaskModal = ({
   // Initialize form when modal opens or taskToEdit changes
   useEffect(() => {
     if (open) {
-      fetchEmployees();
-      fetchClients();
-      
+      if (employees.length === 0) fetchEmployees();
+      if (clients.length === 0) fetchClients();
+
       if (mode === 'edit' && taskToEdit) {
         // Pre-fill form with task data for editing
         setFormData({
@@ -164,105 +178,65 @@ const AddTaskModal = ({
           status: taskToEdit.status || 'pending',
           task_type: taskToEdit.task_type || '',
         });
-        
+
         if (taskToEdit.due_date) {
           setDueDate(new Date(taskToEdit.due_date));
         }
-        
+
         if (taskToEdit.scheduled_date) {
           setScheduledDate(new Date(taskToEdit.scheduled_date));
         }
       } else {
-        // Reset form for new task
-        setFormData({
-          title: '',
-          description: '',
-          assignee: '',
-          client: '',
-          priority: 'medium',
-          status: 'pending',
-          task_type: '',
-        });
-        setDueDate(undefined);
-        setScheduledDate(undefined);
+        // Reset form for new task (handled by resetForm too, but explicit here is safe)
+        resetForm();
       }
     }
   }, [open, mode, taskToEdit]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.assignee) {
-      toast({
-        title: 'Error',
-        description: 'Please select an assignee',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Please select an assignee', variant: 'destructive' });
       return;
     }
-
     if (!formData.client) {
-      toast({
-        title: 'Error',
-        description: 'Please select a client',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Please select a client', variant: 'destructive' });
       return;
     }
-
     if (!dueDate) {
-      toast({
-        title: 'Error',
-        description: 'Please select a due date',
-        variant: 'destructive',
-      });
+      toast({ title: 'Error', description: 'Please select a due date', variant: 'destructive' });
       return;
     }
 
+    setLoading(true);
     try {
-      setLoading(true);
-      
-      const taskData = {
-        title: formData.title,
-        description: formData.description,
-        assignee: parseInt(formData.assignee),
-        client: parseInt(formData.client),
-        priority: formData.priority,
-        status: formData.status,
-        task_type: formData.task_type,
-        due_date: dueDate.toISOString(),
-        ...(scheduledDate && { scheduled_date: scheduledDate.toISOString() }),
+      const payload = {
+        ...formData,
+        due_date: format(dueDate, 'yyyy-MM-dd'),
+        scheduled_date: scheduledDate ? format(scheduledDate, 'yyyy-MM-dd') : null,
       };
 
-      if (mode === 'edit' && taskToEdit) {
-        // Update existing task
-        await axiosInstance.put(`${requests.FetchTasks}${taskToEdit.id}/`, taskData);
-        toast({
-          title: 'Success',
-          description: 'Task updated successfully',
-        });
-        if (onTaskUpdated) onTaskUpdated();
-      } else {
-        // Create new task
-        await axiosInstance.post(requests.CreateTask, taskData);
-        toast({
-          title: 'Success',
-          description: 'Task created successfully',
-        });
+      if (mode === 'add') {
+        await axiosInstance.post(requests.TaskCreate, payload);
         if (onTaskCreated) onTaskCreated();
+        toast({ title: 'Success', description: 'Task created successfully' });
+      } else {
+        await axiosInstance.put(requests.TaskUpdate(taskToEdit.id), payload);
+        if (onTaskUpdated) onTaskUpdated();
+        toast({ title: 'Success', description: 'Task updated successfully' });
       }
 
-      // Reset form and close modal
       resetForm();
       onOpenChange(false);
-      
     } catch (error: any) {
-      console.error('Error saving task:', error);
-      toast({
-        title: 'Error',
-        description: error.response?.data?.error || `Failed to ${mode === 'edit' ? 'update' : 'create'} task`,
-        variant: 'destructive',
-      });
+      console.error("Error saving task:", error);
+      if (error.response) {
+        console.error("Server Error Response:", error.response.data);
+        toast({ title: "Error", description: `Failed to save task: ${JSON.stringify(error.response.data)}`, variant: "destructive" });
+      } else {
+        toast({ title: "Error", description: "Failed to save task", variant: "destructive" });
+      }
     } finally {
       setLoading(false);
     }
@@ -299,13 +273,13 @@ const AddTaskModal = ({
             {mode === 'edit' ? 'Edit Task' : 'Create New Task'}
           </DialogTitle>
           <DialogDescription>
-            {mode === 'edit' 
+            {mode === 'edit'
               ? 'Update the task details, assignee, and client information.'
               : 'Add a new task to assign to team members with deadlines, priorities, and client association.'
             }
           </DialogDescription>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4">
             <div className="space-y-2">
@@ -532,8 +506,8 @@ const AddTaskModal = ({
             >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full sm:w-auto"
               disabled={loading || !formData.title || !formData.assignee || !formData.client || !dueDate}
             >

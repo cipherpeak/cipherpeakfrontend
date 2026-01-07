@@ -7,18 +7,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { 
-  MoreHorizontal, 
-  Mail, 
-  Phone, 
-  Edit, 
-  Trash2, 
+import {
+  MoreHorizontal,
+  Mail,
+  Phone,
+  Edit,
+  Trash2,
   Eye,
   Building,
   CheckCircle2,
   FileText as FileTextIcon
 } from 'lucide-react';
-import { backendUrl } from '@/components/Constants/Constants';
 
 interface Employee {
   id: number;
@@ -74,7 +73,7 @@ export const EmployeeProfileCard: React.FC<EmployeeProfileCardProps> = ({
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'active': return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-800';
-      case 'on_leave': 
+      case 'on_leave':
       case 'on leave': return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-300 dark:border-yellow-800';
       case 'probation_period': return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:border-blue-800';
       case 'notice_period': return 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-300 dark:border-orange-800';
@@ -84,7 +83,7 @@ export const EmployeeProfileCard: React.FC<EmployeeProfileCardProps> = ({
   };
 
   const formatStatus = (status: string) => {
-    return status.split('_').map(word => 
+    return status.split('_').map(word =>
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ');
   };
@@ -94,16 +93,16 @@ export const EmployeeProfileCard: React.FC<EmployeeProfileCardProps> = ({
       {/* Background Image Section - Full Height */}
       <div className="absolute inset-0 z-0">
         <Avatar className="w-full h-full rounded-none">
-          <AvatarImage 
-            src={`${backendUrl}${employee.profile_image_url}` || "/placeholder-avatar.jpg"} 
-            alt={getFullName(employee)} 
+          <AvatarImage
+            src={employee.profile_image_url || "/placeholder-avatar.jpg"}
+            alt={getFullName(employee)}
             className="object-cover"
           />
           <AvatarFallback className="text-4xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground rounded-none w-full h-full flex items-center justify-center">
             {getInitials(employee.first_name, employee.last_name)}
           </AvatarFallback>
         </Avatar>
-        
+
         {/* Dark Overlay for Better Text Readability */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent" />
       </div>
@@ -127,7 +126,7 @@ export const EmployeeProfileCard: React.FC<EmployeeProfileCardProps> = ({
                 <Edit className="mr-2 h-4 w-4" />
                 Edit
               </DropdownMenuItem>
-              <DropdownMenuItem 
+              <DropdownMenuItem
                 className="text-destructive"
                 onClick={() => onDelete(employee.id)}
               >

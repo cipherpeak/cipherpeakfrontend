@@ -5,12 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Plus, 
-  Search, 
-  Mail, 
-  Phone, 
-  Edit, 
+import {
+  Plus,
+  Search,
+  Mail,
+  Phone,
+  Edit,
   Loader2,
   User,
   Calendar,
@@ -29,9 +29,9 @@ import {
 } from 'lucide-react';
 
 import AddEmployeeModal from '@/components/modals/AddEmployeeModal';
-import axiosInstance from '@/axios';
-import requests from '@/lib/urls';
 import { EmployeeProfileCard } from '@/components/pagesComponent/EmployeesCom/EmployeeProfileCard';
+import axiosInstance from '@/axios/axios';
+import { toast } from 'sonner';
 
 interface Employee {
   id: number;
@@ -94,7 +94,7 @@ interface EmployeeDetails extends Employee {
 const getStatusColor = (status: string) => {
   switch (status.toLowerCase()) {
     case 'active': return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-800';
-    case 'on_leave': 
+    case 'on_leave':
     case 'on leave': return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-300 dark:border-yellow-800';
     case 'probation_period': return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:border-blue-800';
     case 'notice_period': return 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-300 dark:border-orange-800';
@@ -110,38 +110,73 @@ const Employees = () => {
   const [employeeToEdit, setEmployeeToEdit] = useState<Employee | null>(null);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('list');
 
-  // Fetch employees from API
   const fetchEmployees = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-      const response = await axiosInstance.get(`${requests.FetchEmployees}`);
-      setEmployees(response.data.employees || response.data);
+      const response = await axiosInstance.get('auth/employees/');
+      console.log("Raw API Response:", response.data);
+
+      const data = response.data;
+
+      if (Array.isArray(data)) {
+        setEmployees(data);
+      } else if (typeof data === 'object' && data !== null) {
+        // Common paginated/wrapped patterns
+        if (Array.isArray(data.results)) {
+          setEmployees(data.results);
+        } else if (Array.isArray(data.data)) {
+          setEmployees(data.data);
+        } else if (Array.isArray(data.employees)) {
+          setEmployees(data.employees);
+        } else {
+          // Fallback: search for ANY array property
+          const arrayValue = Object.values(data).find(val => Array.isArray(val));
+          if (arrayValue) {
+            console.log("Found array in response property, utilizing it.");
+            setEmployees(arrayValue as Employee[]);
+          } else {
+            console.error('Unexpected API response structure. Keys:', Object.keys(data));
+            console.error('Full Object:', JSON.stringify(data, null, 2));
+            setEmployees([]);
+          }
+        }
+      } else {
+        console.error('API response is not an array or object:', typeof data);
+        setEmployees([]);
+      }
     } catch (err: any) {
       console.error('Error fetching employees:', err);
-      setError(err.response?.data?.error || 'Failed to fetch employees');
+      setError('Failed to fetch employees');
+      toast.error('Failed to load employees');
+      setEmployees([]);
     } finally {
       setLoading(false);
     }
   };
 
-  console.log(employees,"this is emply");
-  
-  // Fetch employee details
+
+  console.log(employees, "thjkliugfdcvbnm");
+
+
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
   const fetchEmployeeDetails = async (employeeId: number) => {
+    setDetailLoading(true);
     try {
-      setDetailLoading(true);
-      const response = await axiosInstance.get(`${requests.FetchEmployees}${employeeId}/`);
+      const response = await axiosInstance.get(`auth/employees/${employeeId}/`);
       setSelectedEmployee(response.data);
       setActiveTab('details');
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error fetching employee details:', err);
-      alert('Failed to load employee details');
+      toast.error('Failed to load employee details');
     } finally {
       setDetailLoading(false);
     }
@@ -170,13 +205,13 @@ const Employees = () => {
     setIsAddEmployeeModalOpen(true);
   };
 
-  // Function to handle employee update
   const handleEmployeeUpdated = () => {
-    fetchEmployees(); // Refresh the employee list
-    if (selectedEmployee && employeeToEdit && selectedEmployee.id === employeeToEdit.id) {
-      // If we're viewing the employee that was just updated, refresh the details
-      fetchEmployeeDetails(employeeToEdit.id);
+    fetchEmployees();
+    if (selectedEmployee) {
+      fetchEmployeeDetails(selectedEmployee.id);
     }
+    setIsAddEmployeeModalOpen(false);
+    toast.success('Employee updated successfully');
   };
 
   // Update the modal close handler
@@ -184,10 +219,6 @@ const Employees = () => {
     setIsAddEmployeeModalOpen(false);
     setEmployeeToEdit(null);
   };
-
-  useEffect(() => {
-    fetchEmployees();
-  }, []);
 
   // Filter employees based on search term
   const filteredEmployees = employees.filter(employee =>
@@ -217,20 +248,22 @@ const Employees = () => {
     }
 
     try {
-      await axiosInstance.delete(`/employees/${employeeId}/delete/`);
-      setEmployees(prev => prev.filter(emp => emp.id !== employeeId));
+      await axiosInstance.delete(`auth/employees/${employeeId}/delete/`);
+      toast.success('Employee deleted successfully');
+      fetchEmployees();
       if (selectedEmployee?.id === employeeId) {
-        handleBackToList();
+        handleBackToList(); 
       }
     } catch (err: any) {
       console.error('Error deleting employee:', err);
-      alert('Failed to delete employee');
+      toast.error('Failed to delete employee');
     }
   };
 
   const handleEmployeeAdded = () => {
     fetchEmployees();
     setIsAddEmployeeModalOpen(false);
+    toast.success('Employee added successfully');
   };
 
   const handleDownloadFile = (fileUrl: string, fileName: string) => {
@@ -291,7 +324,7 @@ const Employees = () => {
             </p>
           </div>
           {activeTab === 'list' && (
-            <Button 
+            <Button
               className="flex items-center gap-2"
               onClick={handleAddEmployee}
             >
@@ -304,7 +337,7 @@ const Employees = () => {
               <Button variant="outline" onClick={handleBackToList}>
                 Back to List
               </Button>
-              <Button 
+              <Button
                 className="flex items-center gap-2"
                 onClick={() => selectedEmployee && handleEditEmployee(selectedEmployee)}
               >
@@ -542,12 +575,12 @@ const Employees = () => {
                               <p className="font-medium capitalize">{selectedEmployee.gender || 'N/A'}</p>
                             </div>
                           </div>
-                          
+
                           {selectedEmployee.emergency_contact_name && (
                             <div className="p-3 rounded-lg bg-muted/50">
                               <p className="text-sm text-muted-foreground">Emergency Contact</p>
                               <p className="font-medium">
-                                {selectedEmployee.emergency_contact_name} 
+                                {selectedEmployee.emergency_contact_name}
                                 {selectedEmployee.emergency_contact_relation && ` (${selectedEmployee.emergency_contact_relation})`}
                               </p>
                               {selectedEmployee.emergency_contact_phone && (
@@ -747,8 +780,8 @@ const Employees = () => {
       </div>
 
       {/* Add/Edit Employee Modal */}
-      <AddEmployeeModal 
-        open={isAddEmployeeModalOpen} 
+      <AddEmployeeModal
+        open={isAddEmployeeModalOpen}
         onOpenChange={handleModalClose}
         onEmployeeAdded={handleEmployeeAdded}
         onEmployeeUpdated={handleEmployeeUpdated}

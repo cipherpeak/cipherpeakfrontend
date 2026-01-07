@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -11,53 +12,63 @@ import {
   Clock,
   AlertCircle,
   Plus,
+  Loader2,
 } from 'lucide-react';
-
 const Dashboard = () => {
-  const stats = [
-    {
-      title: 'Total Employees',
-      value: '24',
-      change: '+2',
-      icon: Users,
-      color: 'text-primary',
-    },
-    {
-      title: 'Active Clients',
-      value: '18',
-      change: '+3',
-      icon: UserCheck,
-      color: 'text-success',
-    },
-    {
-      title: 'Pending Tasks',
-      value: '12',
-      change: '-4',
-      icon: CheckSquare,
-      color: 'text-warning',
-    },
-    {
-      title: 'Today\'s Events',
-      value: '5',
-      change: '+1',
-      icon: Calendar,
-      color: 'text-danger',
-    },
-  ];
+  const [stats] = useState([
+    { title: 'Total Employees', value: '24', change: '+2', icon: Users, color: 'text-primary' },
+    { title: 'Active Clients', value: '18', change: '+3', icon: UserCheck, color: 'text-success' },
+    { title: 'Pending Tasks', value: '12', change: '-4', icon: CheckSquare, color: 'text-warning' },
+    { title: 'Today\'s Events', value: '5', change: '+1', icon: Calendar, color: 'text-danger' },
+  ]);
 
-  const recentTasks = [
-    { id: 1, title: 'Update client proposal', assignee: 'John Doe', status: 'In Progress', priority: 'High' },
-    { id: 2, title: 'Review quarterly reports', assignee: 'Jane Smith', status: 'Pending', priority: 'Medium' },
-    { id: 3, title: 'Prepare team meeting', assignee: 'Mike Wilson', status: 'Completed', priority: 'Low' },
-    { id: 4, title: 'Client onboarding call', assignee: 'Sarah Connor', status: 'Scheduled', priority: 'High' },
-  ];
+  const [recentTasks] = useState([
+    {
+      id: 1,
+      title: "Social Media Strategy",
+      assignee_details: { full_name: "Jane Smith" },
+      status: "In Progress",
+      priority: "High",
+    },
+    {
+      id: 2,
+      title: "Content Creation",
+      assignee_details: { full_name: "Mike Wilson" },
+      status: "Pending",
+      priority: "Medium",
+    },
+    {
+      id: 3,
+      title: "Client Meeting",
+      assignee_details: { full_name: "Admin User" },
+      status: "Scheduled",
+      priority: "High",
+    },
+    {
+      id: 4,
+      title: "Website Audit",
+      assignee_details: { full_name: "Sarah Jones" },
+      status: "Completed",
+      priority: "Low",
+    },
+    {
+      id: 5,
+      title: "Email Campaign",
+      assignee_details: { full_name: "Mike Wilson" },
+      status: "In Progress",
+      priority: "Medium",
+    },
+  ]);
 
-  const upcomingEvents = [
-    { time: '09:00', title: 'Team Standup', type: 'Meeting' },
-    { time: '11:30', title: 'Client Presentation', type: 'Presentation' },
-    { time: '14:00', title: 'Project Review', type: 'Review' },
-    { time: '16:30', title: 'HR Interview', type: 'Interview' },
-  ];
+  const [upcomingEvents] = useState([
+    { time: "10:00 AM", title: "Team Sync", type: "Internal Meeting" },
+    { time: "01:30 PM", title: "Client Pitch", type: "Meeting" },
+    { time: "03:00 PM", title: "Project Review", type: "Review" },
+    { time: "04:30 PM", title: "Daily Wrap-up", type: "Sync" },
+  ]);
+
+  const loading = false;
+  const error = null;
 
   const getPriorityColor = (priority: string) => {
     switch (priority.toLowerCase()) {
@@ -132,7 +143,7 @@ const Dashboard = () => {
                   <div className="flex-1">
                     <h4 className="font-medium text-foreground">{task.title}</h4>
                     <p className="text-sm text-muted-foreground mt-1">
-                      Assigned to {task.assignee}
+                      Assigned to {task.assignee_details?.full_name || 'Unassigned'}
                     </p>
                   </div>
                   <div className="flex items-center gap-2">

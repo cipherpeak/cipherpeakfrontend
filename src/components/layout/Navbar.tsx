@@ -1,3 +1,4 @@
+// Update your Navbar component to add Leave Management option
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -9,15 +10,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Moon, Sun, User, Settings, LogOut, Bell } from 'lucide-react';
+import { Moon, Sun, User, Settings, LogOut, Bell, Calendar } from 'lucide-react';
 import logo from "../../assets/cipher_peak full.png"
 
 interface NavbarProps {
   onThemeToggle: () => void;
   isDark: boolean;
+  onNavigateToLeaveManagement?: () => void; // Add this prop
 }
 
-const Navbar = ({ onThemeToggle, isDark }: NavbarProps) => {
+const Navbar = ({ onThemeToggle, isDark, onNavigateToLeaveManagement }: NavbarProps) => {
   const [notifications] = useState(3);
 
   return (
@@ -72,6 +74,11 @@ const Navbar = ({ onThemeToggle, isDark }: NavbarProps) => {
             <DropdownMenuItem>
               <User className="mr-2 h-4 w-4" />
               <span>Profile</span>
+            </DropdownMenuItem>
+            {/* Add Leave Management Option */}
+            <DropdownMenuItem onClick={onNavigateToLeaveManagement}>
+              <Calendar className="mr-2 h-4 w-4" />
+              <span>Leave Management</span>
             </DropdownMenuItem>
             <DropdownMenuItem>
               <Settings className="mr-2 h-4 w-4" />

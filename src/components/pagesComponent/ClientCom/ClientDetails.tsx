@@ -3,9 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { 
-  Mail, 
-  Phone, 
+import {
+  Mail,
+  Phone,
   Loader2,
   Building,
   MapPin,
@@ -25,8 +25,8 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import axiosInstance from '@/axios';
-import requests from '@/lib/urls';
+
+
 
 interface ClientDocument {
   id: number;
@@ -84,7 +84,13 @@ interface ClientDetailsProps {
   onDownloadFile: (fileUrl: string, fileName: string) => void;
   onUploadDocument: (clientId: number, formData: FormData) => Promise<void>;
   onDocumentUploaded?: () => void; // Callback to refresh documents list
+  onRefresh: () => void;
 }
+
+import { requests } from '@/lib/urls';
+import axiosInstance from '@/axios/axios';
+
+// ... existing imports ...
 
 // Document type options based on your Django model
 const DOCUMENT_TYPES = [
@@ -108,6 +114,7 @@ const ClientDetails = ({
   onDownloadFile,
   onUploadDocument,
   onDocumentUploaded,
+  onRefresh,
 }: ClientDetailsProps) => {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
@@ -123,72 +130,44 @@ const ClientDetails = ({
     file: null as File | null,
   });
 
-  console.log(clientDocuments,"this is client document");
-  
-
-  // Fetch client documents when selectedClient changes
+  // Sync clientDocuments with selectedClient.documents
   useEffect(() => {
-    if (selectedClient) {
-      fetchClientDocuments();
+    if (selectedClient && selectedClient.documents) {
+      setClientDocuments(selectedClient.documents);
+    } else {
+      setClientDocuments([]);
     }
   }, [selectedClient]);
 
-  // API call to fetch client documents
-  const fetchClientDocuments = async () => {
-    if (!selectedClient) return;
-    
-    setDocumentsLoading(true);
-    setDocumentsError(null);
-    
-    try {
-      // Option 1: If your API supports filtering documents by client ID
-      const response = await axiosInstance.get(
-        `${requests.CreateClientDocuments}?client=${selectedClient.id}`
-      );
-      
-      // Option 2: If your API returns all documents and you need to filter client-side
-      // const response = await axiosInstance.get(requests.CreateClientDocuments);
-      // const filteredDocuments = response.data.filter((doc: ClientDocument) => doc.client === selectedClient.id);
-      
-      setClientDocuments(response.data);
-    } catch (error: any) {
-      console.error('Error fetching client documents:', error);
-      setDocumentsError(
-        error.response?.data?.error || 
-        error.response?.data?.message || 
-        'Failed to load documents. Please try again.'
-      );
-    } finally {
-      setDocumentsLoading(false);
-    }
-  };
+  // Document fetch is handled by parent fetching client details now
 
-  // API call to delete a document
+  // API call to delete a document - DISABLED (No endpoint provided)
   const handleDeleteDocument = async (documentId: number) => {
-    if (!confirm('Are you sure you want to delete this document?')) {
-      return;
-    }
+    alert("Document deletion is currently not supported by the server.");
+    // if (!confirm('Are you sure you want to delete this document?')) {
+    //   return;
+    // }
 
-    try {
-      await axiosInstance.delete(`${requests.CreateClientDocuments}${documentId}/`);
-      
-      // Remove the document from local state
-      setClientDocuments(prev => prev.filter(doc => doc.id !== documentId));
-      
-      // Call callback if provided
-      if (onDocumentUploaded) {
-        onDocumentUploaded();
-      }
-    } catch (error: any) {
-      console.error('Error deleting document:', error);
-      alert('Failed to delete document. Please try again.');
-    }
+    // try {
+    //   await axiosInstance.delete(`${requests.CreateClientDocuments}${documentId}/`);
+    //   
+    //   // Remove the document from local state
+    //   setClientDocuments(prev => prev.filter(doc => doc.id !== documentId));
+    //   
+    //   // Call callback if provided
+    //   if (onDocumentUploaded) {
+    //     onDocumentUploaded();
+    //   }
+    // } catch (error: any) {
+    //   console.error('Error deleting document:', error);
+    //   alert('Failed to delete document. Please try again.');
+    // }
   };
 
   // Safe getInitials function
   const getInitials = (name: string | undefined | null): string => {
     if (!name) return 'CL';
-    
+
     return name
       .split(' ')
       .map(word => word.charAt(0))
@@ -197,20 +176,22 @@ const ClientDetails = ({
       .slice(0, 2);
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | undefined | null) => {
+    if (!status) return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
     switch (status.toLowerCase()) {
       case 'active': return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-300 dark:border-yellow-800';
-      case 'on_hold': 
+      case 'on_hold':
       case 'on hold': return 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-300 dark:border-orange-800';
-      case 'inactive': 
+      case 'inactive':
       case 'terminated': return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
       case 'prospect': return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:border-blue-800';
       default: return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
     }
   };
 
-  const getPaymentStatusColor = (status: string) => {
+  const getPaymentStatusColor = (status: string | undefined | null) => {
+    if (!status) return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
     switch (status.toLowerCase()) {
       case 'paid': return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-300 dark:border-yellow-800';
@@ -222,7 +203,7 @@ const ClientDetails = ({
 
   const getIndustryColor = (industry: string) => {
     if (!industry) return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
-    
+
     const colors = [
       'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:border-blue-800',
       'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-800',
@@ -236,7 +217,7 @@ const ClientDetails = ({
 
   const formatStatus = (status: string) => {
     if (!status) return 'Unknown';
-    return status.split('_').map(word => 
+    return status.split('_').map(word =>
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ');
   };
@@ -260,10 +241,10 @@ const ClientDetails = ({
   };
 
   const getTotalContent = (client: Client): number => {
-    return (client.videos_per_month || 0) + 
-           (client.posters_per_month || 0) + 
-           (client.reels_per_month || 0) + 
-           (client.stories_per_month || 0);
+    return (client.videos_per_month || 0) +
+      (client.posters_per_month || 0) +
+      (client.reels_per_month || 0) +
+      (client.stories_per_month || 0);
   };
 
   const getPaymentCycleDisplay = (cycle: string): string => {
@@ -292,13 +273,13 @@ const ClientDetails = ({
         setUploadError('Please select a JPG, PNG, or PDF file');
         return;
       }
-      
+
       // Validate file size (10MB max)
       if (file.size > 10 * 1024 * 1024) {
         setUploadError('File size must be less than 10MB');
         return;
       }
-      
+
       setUploadError(null);
       setUploadForm(prev => ({ ...prev, file }));
     }
@@ -306,7 +287,7 @@ const ClientDetails = ({
 
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!selectedClient || !uploadForm.file) {
       setUploadError('Please fill all required fields');
       return;
@@ -323,17 +304,17 @@ const ClientDetails = ({
       formData.append('description', uploadForm.description || '');
       formData.append('file', uploadForm.file);
       formData.append('client', selectedClient.id.toString());
-      
+
       // Call the API using axiosInstance
       const response = await axiosInstance.post(
-        requests.CreateClientDocuments,
+        requests.ClientUploadDocument(selectedClient.id),
         formData,
         {
           headers: {
             'Content-Type': 'multipart/form-data',
           },
           onUploadProgress: (progressEvent) => {
-            const progress = progressEvent.total ? 
+            const progress = progressEvent.total ?
               (progressEvent.loaded / progressEvent.total) * 100 : 0;
             setUploadProgress(progress);
           },
@@ -341,10 +322,10 @@ const ClientDetails = ({
       );
 
       console.log('Document uploaded successfully:', response.data);
-      
+
       // Add the new document to local state
-      setClientDocuments(prev => [response.data, ...prev]);
-      
+      // setClientDocuments(prev => [response.data, ...prev]);
+
       // Call the parent handler if provided
       if (onUploadDocument) {
         await onUploadDocument(selectedClient.id, formData);
@@ -354,16 +335,20 @@ const ClientDetails = ({
       if (onDocumentUploaded) {
         onDocumentUploaded();
       }
-      
+
+      if (onRefresh) {
+        onRefresh();
+      }
+
       // Reset form and close modal
       resetUploadForm();
       setIsUploadModalOpen(false);
-      
+
     } catch (error: any) {
       console.error('Error uploading document:', error);
       setUploadError(
-        error.response?.data?.error || 
-        error.response?.data?.message || 
+        error.response?.data?.error ||
+        error.response?.data?.message ||
         'Failed to upload document. Please try again.'
       );
     } finally {
@@ -444,7 +429,7 @@ const ClientDetails = ({
                 <X className="h-4 w-4" />
               </Button>
             </div>
-            
+
             <form onSubmit={handleUploadSubmit} className="p-6 space-y-4">
               {uploadError && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
@@ -459,14 +444,14 @@ const ClientDetails = ({
                     <span>{Math.round(uploadProgress)}%</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
+                    <div
                       className="bg-primary h-2 rounded-full transition-all duration-300"
                       style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
                 </div>
               )}
-              
+
               <div>
                 <label className="block text-sm font-medium mb-2">
                   Document Type <span className="text-red-500">*</span>
@@ -486,7 +471,7 @@ const ClientDetails = ({
                   ))}
                 </select>
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium mb-2">
                   Title <span className="text-red-500">*</span>
@@ -501,7 +486,7 @@ const ClientDetails = ({
                   disabled={uploadLoading}
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium mb-2">
                   Description
@@ -515,7 +500,7 @@ const ClientDetails = ({
                   disabled={uploadLoading}
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm font-medium mb-2">
                   File <span className="text-red-500">*</span>
@@ -537,7 +522,7 @@ const ClientDetails = ({
                   </p>
                 )}
               </div>
-              
+
               <div className="flex gap-3 pt-4">
                 <Button
                   type="button"
@@ -692,9 +677,9 @@ const ClientDetails = ({
                     <Globe className="h-5 w-5 text-primary" />
                     <div>
                       <p className="text-sm text-muted-foreground">Website</p>
-                      <a 
-                        href={selectedClient.website} 
-                        target="_blank" 
+                      <a
+                        href={selectedClient.website}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="font-medium text-primary hover:underline"
                       >
@@ -745,7 +730,7 @@ const ClientDetails = ({
                     </Badge>
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-muted-foreground">Content/Month</p>
@@ -818,7 +803,7 @@ const ClientDetails = ({
                   </div>
                 </div>
               </div>
-              
+
               {selectedClient.current_month_payment_status === 'pending' && (
                 <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <div className="flex items-center gap-3">
@@ -833,7 +818,7 @@ const ClientDetails = ({
                       </p>
                     </div>
                   </div>
-                  <Button 
+                  <Button
                     className="mt-3 bg-yellow-600 hover:bg-yellow-700"
                     onClick={() => onMarkPaymentPaid(selectedClient.id)}
                   >
@@ -854,7 +839,7 @@ const ClientDetails = ({
                       </p>
                     </div>
                   </div>
-                  <Button 
+                  <Button
                     className="mt-3 bg-red-600 hover:bg-red-700"
                     onClick={() => onMarkPaymentPaid(selectedClient.id)}
                   >
@@ -937,14 +922,14 @@ const ClientDetails = ({
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={fetchClientDocuments}
+                  onClick={onRefresh}
                   disabled={documentsLoading}
                   className="flex items-center gap-2"
                 >
                   <RefreshCw className={`h-4 w-4 ${documentsLoading ? 'animate-spin' : ''}`} />
                   Refresh
                 </Button>
-                <Button 
+                <Button
                   onClick={() => setIsUploadModalOpen(true)}
                   className="flex items-center gap-2"
                 >
@@ -960,7 +945,7 @@ const ClientDetails = ({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={fetchClientDocuments}
+                    onClick={onRefresh}
                     className="ml-2"
                   >
                     Try Again
@@ -989,7 +974,7 @@ const ClientDetails = ({
                             </p>
                             {doc.description && (
                               <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                                {doc.description} 
+                                {doc.description}
 
                               </p>
                             )}
@@ -1023,7 +1008,7 @@ const ClientDetails = ({
                 <div className="text-center py-8 text-muted-foreground">
                   <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No documents available</p>
-                  <Button 
+                  <Button
                     onClick={() => setIsUploadModalOpen(true)}
                     className="mt-4"
                   >

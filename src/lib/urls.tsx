@@ -1,45 +1,19 @@
-import { backendUrl } from "../components/Constants/Constants"
+export const requests = {
+    // Client API
+    ClientCreate: 'client/create/',
+    ClientList: 'client/clients/',
+    ClientDetail: (id: number) => `client/clients/details/${id}/`,
+    ClientUpdate: (id: number) => `client/clients/${id}/update/`,
+    ClientDelete: (id: number) => `client/clients/delete/${id}/`,
+    ClientUploadDocument: (id: number) => `client/clients/${id}/upload-document/`,
 
+    // Task API
+    TaskCreate: 'tasks/create/',
+    TaskList: 'tasks/tasks/',
+    TaskDetail: (id: number) => `tasks/task_details/${id}/`,
+    TaskUpdate: (id: number) => `tasks/update-task/${id}/`,
+    TaskDelete: (id: number) => `tasks/task/${id}/delete/`,
 
-const requests = {
-    LoginUser :`${backendUrl}/auth/login/`,
-    FetchEmployees :`${backendUrl}/auth/employees/`,
-    CreateEmployees :`${backendUrl}/auth/employees/create/`,
-    UpdateEmployees :`${backendUrl}/auth/employees/`,
-
-    FetchClients :`${backendUrl}/client/create/`,
-    CreateClient :`${backendUrl}/client/create/`,
-    UpdateClient :`${backendUrl}/client/create/`,
-    EarlyPaid:`${backendUrl}/client/earlypaid/`,
-    CreateClientDocuments:`${backendUrl}/client/documents/`,
-
-    // Add tasks endpoints
-    FetchTasks: `${backendUrl}/tasks/create/`,
-    CreateTask: `${backendUrl}/tasks/create/`,
-    UpdateTask: `${backendUrl}/tasks/create/`,
-
-
-
-    FetchEvents: `${backendUrl}/event/events/`,
-    CreateEvent: `${backendUrl}/event/events/`,
-
-    FetchIncomes: `${backendUrl}/finance/incomes/`,
-    CreateIncome: `${backendUrl}/finance/incomes/`,
-    UpdateIncome: `${backendUrl}/finance/incomes/`,
-    DeleteIncome: `${backendUrl}/finance/incomes/`,
-    
-    FetchExpenses: `${backendUrl}/finance/expenses/`,
-    CreateExpense: `${backendUrl}/finance/expenses/`,
-    UpdateExpense: `${backendUrl}/finance/expenses/`,
-    DeleteExpense: `${backendUrl}/finance/expenses/`,
-    
-    FetchIncomeCategories:`${backendUrl}/finance/income-categories/`,
-    FetchExpenseCategories: `${backendUrl}/finance/expense-categories/`,
-    
-    FinanceStats: `${backendUrl}/finance/stats/`,
-    RecentTransactions: `${backendUrl}/finance/recent-transactions/`,
-    GenerateSummary: `${backendUrl}/finance/generate-summary/`,
-    ExportData:`${backendUrl}/finance/export-data/`,
-        
-}
-export default requests 
+    // Auth/Employee API
+    EmployeeList: 'auth/employees/',
+};

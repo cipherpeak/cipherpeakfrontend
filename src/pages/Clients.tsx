@@ -12,14 +12,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
-import { 
-  Plus, 
-  Search, 
-  MoreHorizontal, 
-  Mail, 
-  Phone, 
-  Edit, 
-  Trash2, 
+import {
+  Plus,
+  Search,
+  MoreHorizontal,
+  Mail,
+  Phone,
+  Edit,
+  Trash2,
   Loader2,
   Building,
   MapPin,
@@ -33,66 +33,40 @@ import {
   CalendarDays
 } from 'lucide-react';
 import AddClientModal from '@/components/modals/AddClientModal';
-import axiosInstance from '@/axios';
-import requests from '@/lib/urls';
+import axiosInstance from '@/axios/axios';
+import { requests } from '@/lib/urls';
+import { toast } from 'sonner';
 import ClientDetails from '@/components/pagesComponent/ClientCom/ClientDetails';
-
-interface ClientDocument {
-  id: number;
-  client: number;
-  document_type: string;
-  title: string;
-  description: string;
-  file: string;
-  file_url: string;
-  uploaded_at: string;
-  uploaded_by: number;
-}
 
 interface Client {
   id: number;
   client_name: string;
   client_type: string;
   industry: string;
-  status: 'active' | 'inactive' | 'on_hold' | 'terminated' | 'prospect';
-  owner_name?: string;
-  contact_person_name?: string;
-  contact_email?: string;
-  contact_phone?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  postal_code?: string;
-  website?: string;
-  description?: string;
-  monthly_retainer?: string;
+  status: string;
+  contact_person_name: string;
+  contact_email: string;
+  contact_phone: string;
+  monthly_retainer: string;
   videos_per_month: number;
   posters_per_month: number;
   reels_per_month: number;
   stories_per_month: number;
   onboarding_date: string;
-  contract_start_date?: string;
-  contract_end_date?: string;
-  // New Payment Fields
   payment_cycle: string;
   payment_date: number;
-  next_payment_date?: string;
   current_month_payment_status: string;
-  last_payment_date?: string;
-  created_at: string;
-  updated_at: string;
-  // Computed Properties
-  total_content_per_month?: number;
-  is_active_client?: boolean;
-  contract_duration?: number;
-  is_payment_overdue?: boolean;
-  days_until_next_payment?: number;
-  payment_status_display?: string;
+  created_at?: string;
+  updated_at?: string;
+  next_payment_date?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  owner_name?: string;
 }
 
 interface ClientDetailsType extends Client {
-  documents: ClientDocument[];
+  documents: any[];
 }
 
 const Clients = () => {
@@ -102,59 +76,76 @@ const Clients = () => {
   const [clientToEdit, setClientToEdit] = useState<Client | null>(null);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [clients, setClients] = useState<Client[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('list');
 
-  // Fetch clients from API
   const fetchClients = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-      const response = await axiosInstance.get(requests.FetchClients);
-      setClients(response.data.results || response.data);
+      const response = await axiosInstance.get(requests.ClientList);
+      console.log("Raw Client API Response:", response.data);
+
+      const data = response.data;
+
+      if (Array.isArray(data)) {
+        setClients(data);
+      } else if (typeof data === 'object' && data !== null) {
+        if (Array.isArray(data.results)) {
+          setClients(data.results);
+        } else if (Array.isArray(data.data)) {
+          setClients(data.data);
+        } else if (Array.isArray(data.clients)) {
+          setClients(data.clients);
+        } else {
+          // Fallback
+          const arrayValue = Object.values(data).find(val => Array.isArray(val));
+          if (arrayValue) {
+            console.log("Found array in response property, utilizing it.");
+            setClients(arrayValue as Client[]);
+          } else {
+            console.error('Unexpected API response structure:', data);
+            setClients([]);
+          }
+        }
+      } else {
+        console.error('API response is not an array or object:', typeof data);
+        setClients([]);
+      }
     } catch (err: any) {
       console.error('Error fetching clients:', err);
-      setError(err.response?.data?.error || 'Failed to fetch clients');
+      setError('Failed to fetch clients');
+      toast.error('Failed to load clients');
+      setClients([]);
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchClients();
+  }, []);
+
   // Fetch client details
   const fetchClientDetails = async (clientId: number) => {
+    setDetailLoading(true);
     try {
-      setDetailLoading(true);
-      const response = await axiosInstance.get(`${requests.FetchClients}${clientId}/`);
-      
-      const clientDetails: ClientDetailsType = {
-        ...response.data,
-        documents: response.data.documents || []
-      };
-      
-      setSelectedClient(clientDetails);
+      const response = await axiosInstance.get(requests.ClientDetail(clientId));
+      setSelectedClient(response.data);
       setActiveTab('details');
-    } catch (err: any) {
+    } catch (err) {
       console.error('Error fetching client details:', err);
-      alert('Failed to load client details');
+      toast.error('Failed to load client details');
     } finally {
       setDetailLoading(false);
     }
   };
 
-  // Mark payment as paid
-  const handleMarkPaymentPaid = async (clientId: number) => {
-    try {
-      await axiosInstance.post(`${requests.FetchClients}${clientId}/mark-paid/`);
-      fetchClients(); // Refresh the list
-      if (selectedClient?.id === clientId) {
-        fetchClientDetails(clientId); // Refresh details if viewing this client
-      }
-    } catch (err: any) {
-      console.error('Error marking payment as paid:', err);
-      alert('Failed to mark payment as paid');
-    }
+  // Mark payment as pa id
+  const handleMarkPaymentPaid = (clientId: number) => {
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, current_month_payment_status: 'paid' } : c));
   };
 
   const handleViewDetails = (client: Client) => {
@@ -180,9 +171,11 @@ const Clients = () => {
 
   const handleClientUpdated = () => {
     fetchClients();
-    if (selectedClient && clientToEdit && selectedClient.id === clientToEdit.id) {
-      fetchClientDetails(clientToEdit.id);
+    if (selectedClient) {
+      fetchClientDetails(selectedClient.id);
     }
+    setIsAddClientModalOpen(false);
+    toast.success('Client updated successfully');
   };
 
   const handleModalClose = () => {
@@ -196,14 +189,15 @@ const Clients = () => {
     }
 
     try {
-      // await axiosInstance.delete(`${requests.DeleteClient}${clientId}/`);
-      setClients(prev => prev.filter(client => client.id !== clientId));
+      await axiosInstance.delete(requests.ClientDelete(clientId));
+      toast.success('Client deleted successfully');
+      fetchClients();
       if (selectedClient?.id === clientId) {
         handleBackToList();
       }
     } catch (err: any) {
       console.error('Error deleting client:', err);
-      alert('Failed to delete client');
+      toast.error('Failed to delete client');
     }
   };
 
@@ -215,7 +209,7 @@ const Clients = () => {
   const handleDownloadFile = (fileUrl: string, fileName: string) => {
     console.log(fileUrl);
     console.log(fileName);
-    
+
 
     const link = document.createElement('a');
     link.href = fileUrl;
@@ -226,14 +220,10 @@ const Clients = () => {
     document.body.removeChild(link);
   };
 
-  useEffect(() => {
-    fetchClients();
-  }, []);
-
   // Safe getInitials function
   const getInitials = (name: string | undefined | null): string => {
     if (!name) return 'CL';
-    
+
     return name
       .split(' ')
       .map(word => word.charAt(0))
@@ -256,9 +246,9 @@ const Clients = () => {
     switch (status.toLowerCase()) {
       case 'active': return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-300 dark:border-yellow-800';
-      case 'on_hold': 
+      case 'on_hold':
       case 'on hold': return 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900 dark:text-orange-300 dark:border-orange-800';
-      case 'inactive': 
+      case 'inactive':
       case 'terminated': return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
       case 'prospect': return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:border-blue-800';
       default: return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
@@ -277,14 +267,14 @@ const Clients = () => {
 
   const formatStatus = (status: string) => {
     if (!status) return 'Unknown';
-    return status.split('_').map(word => 
+    return status.split('_').map(word =>
       word.charAt(0).toUpperCase() + word.slice(1)
     ).join(' ');
   };
 
   const getIndustryColor = (industry: string) => {
     if (!industry) return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
-    
+
     const colors = [
       'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:border-blue-800',
       'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-800',
@@ -315,10 +305,10 @@ const Clients = () => {
   };
 
   const getTotalContent = (client: Client): number => {
-    return (client.videos_per_month || 0) + 
-           (client.posters_per_month || 0) + 
-           (client.reels_per_month || 0) + 
-           (client.stories_per_month || 0);
+    return (client.videos_per_month || 0) +
+      (client.posters_per_month || 0) +
+      (client.reels_per_month || 0) +
+      (client.stories_per_month || 0);
   };
 
   const getPaymentCycleDisplay = (cycle: string): string => {
@@ -386,7 +376,7 @@ const Clients = () => {
             </p>
           </div>
           {activeTab === 'list' && (
-            <Button 
+            <Button
               className="flex items-center gap-2"
               onClick={handleAddClient}
             >
@@ -400,7 +390,7 @@ const Clients = () => {
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to List
               </Button>
-              <Button 
+              <Button
                 className="flex items-center gap-2"
                 onClick={() => selectedClient && handleEditClient(selectedClient)}
               >
@@ -479,7 +469,7 @@ const Clients = () => {
                               Mark as Paid
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             className="text-destructive"
                             onClick={() => handleDeleteClient(client.id)}
                           >
@@ -501,7 +491,7 @@ const Clients = () => {
                           {client.industry || 'Not specified'}
                         </Badge>
                       </div>
-                      
+
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-muted-foreground">Status</span>
                         <Badge variant="outline" className={getStatusColor(client.status)}>
@@ -611,14 +601,15 @@ const Clients = () => {
               onEditClient={handleEditClient}
               onMarkPaymentPaid={handleMarkPaymentPaid}
               onDownloadFile={handleDownloadFile}
+              onRefresh={() => selectedClient && fetchClientDetails(selectedClient.id)}
             />
           </TabsContent>
         </Tabs>
       </div>
 
       {/* Add/Edit Client Modal */}
-      <AddClientModal 
-        open={isAddClientModalOpen} 
+      <AddClientModal
+        open={isAddClientModalOpen}
         onOpenChange={handleModalClose}
         onClientAdded={handleClientAdded}
         onClientUpdated={handleClientUpdated}

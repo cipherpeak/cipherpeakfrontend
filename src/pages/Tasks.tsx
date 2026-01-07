@@ -13,12 +13,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { 
-  Plus, 
-  Search, 
-  MoreHorizontal, 
-  Edit, 
-  Trash2, 
+import {
+  Plus,
+  Search,
+  MoreHorizontal,
+  Edit,
+  Trash2,
   Loader2,
   User,
   Calendar,
@@ -46,10 +46,9 @@ import {
   IdCard
 } from 'lucide-react';
 import AddTaskModal from '@/components/modals/AddTaskModal';
-import axiosInstance from '@/axios';
-import requests from '@/lib/urls';
 import { useToast } from '@/components/ui/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { STATIC_TASKS } from '@/lib/staticTaskData';
 
 interface Task {
   id: number;
@@ -59,33 +58,20 @@ interface Task {
   assignee_details: {
     id: number;
     username: string;
-    email: string;
     first_name: string;
     last_name: string;
     full_name: string;
-    role: string;
     designation: string;
     department: string;
     employee_id: string;
+    role: string;
+    email: string;
     phone_number: string;
   };
   client: number;
   client_details: {
     id: number;
     client_name: string;
-    email: string;
-    phone: string;
-    company: string;
-    total_content_per_month?: number;
-    is_active_client?: boolean;
-    contract_duration?: string;
-    contract_start_date?: string;
-    contract_end_date?: string;
-    address?: string;
-    city?: string;
-    state?: string;
-    postal_code?: string;
-    country?: string;
   };
   status: string;
   status_display: string;
@@ -118,15 +104,15 @@ interface Task {
 // Fix: Create a proper icon mapping function
 const getStatusIcon = (status: string) => {
   switch (status.toLowerCase()) {
-    case 'completed': 
+    case 'completed':
       return <CheckCircle2 className="h-5 w-5 text-primary" />;
-    case 'in_progress': 
+    case 'in_progress':
       return <PlayCircle className="h-5 w-5 text-primary" />;
-    case 'pending': 
+    case 'pending':
       return <Clock className="h-5 w-5 text-primary" />;
-    case 'scheduled': 
+    case 'scheduled':
       return <CalendarClock className="h-5 w-5 text-primary" />;
-    default: 
+    default:
       return <AlertCircle className="h-5 w-5 text-primary" />;
   }
 };
@@ -137,8 +123,8 @@ const Tasks = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [tasks, setTasks] = useState<Task[]>(STATIC_TASKS);
+  const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('list');
@@ -146,50 +132,28 @@ const Tasks = () => {
   const [filterStatus, setFilterStatus] = useState('all');
   const { toast } = useToast();
 
-  // Fetch tasks from API
   const fetchTasks = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const params: any = {};
-      
-      if (filterStatus !== 'all') {
-        params.status = filterStatus;
-      }
-      if (filterPriority !== 'all') {
-        params.priority = filterPriority;
-      }
-      if (searchTerm) {
-        params.search = searchTerm;
-      }
-
-      const response = await axiosInstance.get(requests.FetchTasks, { params });
-      setTasks(response.data.results || response.data);
-    } catch (err: any) {
-      console.error('Error fetching tasks:', err);
-      setError(err.response?.data?.error || 'Failed to fetch tasks');
-    } finally {
+    setLoading(true);
+    setTimeout(() => {
       setLoading(false);
-    }
+    }, 500);
   };
+
+  useEffect(() => {
+    fetchTasks();
+  }, []);
 
   // Fetch task details
   const fetchTaskDetails = async (taskId: number) => {
-    try {
-      setDetailLoading(true);
-      const response = await axiosInstance.get(`${requests.FetchTasks}${taskId}/`);
-      setSelectedTask(response.data);
-      setActiveTab('details');
-    } catch (err: any) {
-      console.error('Error fetching task details:', err);
-      toast({
-        title: 'Error',
-        description: 'Failed to load task details',
-        variant: 'destructive',
-      });
-    } finally {
+    setDetailLoading(true);
+    setTimeout(() => {
+      const task = tasks.find(t => t.id === taskId);
+      if (task) {
+        setSelectedTask(task);
+        setActiveTab('details');
+      }
       setDetailLoading(false);
-    }
+    }, 500);
   };
 
   const handleViewDetails = (task: Task) => {
@@ -217,11 +181,11 @@ const Tasks = () => {
 
   // Function to handle task update
   const handleTaskUpdated = () => {
-    fetchTasks(); // Refresh the task list
+    fetchTasks();
     if (selectedTask && taskToEdit && selectedTask.id === taskToEdit.id) {
-      // If we're viewing the task that was just updated, refresh the details
-      fetchTaskDetails(taskToEdit.id);
+      fetchTaskDetails(selectedTask.id);
     }
+    setIsAddTaskModalOpen(false);
   };
 
   // Handle task creation
@@ -237,61 +201,38 @@ const Tasks = () => {
   };
 
   // Handle status update
-  const handleStatusUpdate = async (taskId: number, newStatus: string) => {
-    try {
-      await axiosInstance.patch(`${requests.FetchTasks}${taskId}/`, { status: newStatus });
-      toast({
-        title: 'Success',
-        description: 'Task status updated successfully',
-      });
-      fetchTasks(); // Refresh the list
-      if (selectedTask?.id === taskId) {
-        fetchTaskDetails(taskId); // Refresh details if viewing this task
-      }
-    } catch (err: any) {
-      console.error('Error updating task status:', err);
-      toast({
-        title: 'Error',
-        description: 'Failed to update task status',
-        variant: 'destructive',
-      });
-    }
+  const handleStatusUpdate = (taskId: number, newStatus: string) => {
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus, status_display: newStatus.replace('_', ' ') } : t));
+    toast({
+      title: 'Success',
+      description: 'Task status updated successfully',
+    });
   };
 
   // Handle task deletion
-  const handleDeleteTask = async (taskId: number) => {
+  const handleDeleteTask = (taskId: number) => {
     if (!confirm('Are you sure you want to delete this task?')) {
       return;
     }
 
-    try {
-      await axiosInstance.delete(`${requests.FetchTasks}${taskId}/`);
-      setTasks(prev => prev.filter(task => task.id !== taskId));
-      toast({
-        title: 'Success',
-        description: 'Task deleted successfully',
-      });
-      if (selectedTask?.id === taskId) {
-        handleBackToList();
-      }
-    } catch (err: any) {
-      console.error('Error deleting task:', err);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete task',
-        variant: 'destructive',
-      });
+    setTasks(prev => prev.filter(t => t.id !== taskId));
+    toast({
+      title: 'Success',
+      description: 'Task deleted successfully',
+    });
+    if (selectedTask?.id === taskId) {
+      handleBackToList();
     }
   };
 
   useEffect(() => {
-    fetchTasks();
+    // Static mode - no refresh needed
   }, [filterStatus, filterPriority]);
 
   // Debounced search
   useEffect(() => {
     const timeoutId = setTimeout(() => {
-      fetchTasks();
+      // Static mode - no refresh needed
     }, 300);
 
     return () => clearTimeout(timeoutId);
@@ -348,7 +289,7 @@ const Tasks = () => {
   };
 
   const getTasksByStatus = (status: string) => {
-    return filteredTasks.filter(task => 
+    return filteredTasks.filter(task =>
       status === 'all' ? true : task.status.toLowerCase() === status
     );
   };
@@ -409,7 +350,7 @@ const Tasks = () => {
             </p>
           </div>
           {activeTab === 'list' && (
-            <Button 
+            <Button
               className="flex items-center gap-2"
               onClick={handleAddTask}
             >
@@ -422,7 +363,7 @@ const Tasks = () => {
               <Button variant="outline" onClick={handleBackToList}>
                 Back to List
               </Button>
-              <Button 
+              <Button
                 className="flex items-center gap-2"
                 onClick={() => selectedTask && handleEditTask(selectedTask)}
               >
@@ -524,7 +465,7 @@ const Tasks = () => {
                             <Edit className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             className="text-destructive"
                             onClick={() => handleDeleteTask(task.id)}
                           >
@@ -540,7 +481,7 @@ const Tasks = () => {
                       <p className="text-sm text-muted-foreground line-clamp-2">
                         {task.description || 'No description provided'}
                       </p>
-                      
+
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-muted-foreground">Priority</span>
                         <Badge variant="outline" className={getPriorityColor(task.priority)}>
@@ -1037,7 +978,7 @@ const Tasks = () => {
                             <div className="flex items-start gap-4">
                               <div className="flex flex-col items-center">
                                 <div className="w-3 h-3 bg-green-500 rounded-full mt-1.5"></div>
-                              <div className="w-0.5 h-16 bg-green-200 mt-2"></div>
+                                <div className="w-0.5 h-16 bg-green-200 mt-2"></div>
                               </div>
                               <div className="flex-1">
                                 <p className="font-medium">Task Completed</p>
@@ -1079,8 +1020,8 @@ const Tasks = () => {
       </div>
 
       {/* Add/Edit Task Modal */}
-      <AddTaskModal 
-        open={isAddTaskModalOpen} 
+      <AddTaskModal
+        open={isAddTaskModalOpen}
         onOpenChange={handleModalClose}
         onTaskCreated={handleTaskCreated}
         onTaskUpdated={handleTaskUpdated}
@@ -1092,3 +1033,4 @@ const Tasks = () => {
 };
 
 export default Tasks;
+

@@ -27,9 +27,10 @@ import {
 import { format } from 'date-fns';
 import { CalendarIcon, Loader2, Clock, MapPin, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import axiosInstance from '@/axios';
-import requests from '@/lib/urls';
+
+
 import { useToast } from '@/components/ui/use-toast';
+// Reverting to static mode
 
 interface Employee {
   id: number;
@@ -49,10 +50,10 @@ interface AddEventModalProps {
   mode?: 'add' | 'edit';
 }
 
-const AddEventModal = ({ 
-  open, 
-  onOpenChange, 
-  onEventCreated, 
+const AddEventModal = ({
+  open,
+  onOpenChange,
+  onEventCreated,
   onEventUpdated,
   eventToEdit,
   mode = 'add'
@@ -132,27 +133,21 @@ const AddEventModal = ({
 
   // Fetch employees for assigned employee dropdown
   const fetchEmployees = async () => {
-    try {
-      setEmployeesLoading(true);
-      const response = await axiosInstance.get(requests.FetchEmployees);
-      setEmployees(response.data.employees || response.data);
-    } catch (error) {
-      console.error('Error fetching employees:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load employees',
-        variant: 'destructive',
-      });
-    } finally {
+    setEmployeesLoading(true);
+    setTimeout(() => {
+      setEmployees([
+        { id: 1, first_name: 'Admin', last_name: 'User', email: 'admin@cipherpeak.com', designation: 'CEO', department: 'Management' },
+        { id: 2, first_name: 'Jane', last_name: 'Smith', email: 'jane@cipherpeak.com', designation: 'Designer', department: 'Design' },
+      ]);
       setEmployeesLoading(false);
-    }
+    }, 500);
   };
 
   // Initialize form when modal opens or eventToEdit changes
   useEffect(() => {
     if (open) {
       fetchEmployees();
-      
+
       if (mode === 'edit' && eventToEdit) {
         // Pre-fill form with event data for editing
         setFormData({
@@ -166,7 +161,7 @@ const AddEventModal = ({
           is_recurring: eventToEdit.is_recurring ? 'true' : 'false',
           recurrence_pattern: eventToEdit.recurrence_pattern || '',
         });
-        
+
         if (eventToEdit.event_date) {
           const eventDate = new Date(eventToEdit.event_date);
           setEventDate(eventDate);
@@ -179,9 +174,9 @@ const AddEventModal = ({
     }
   }, [open, mode, eventToEdit]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.assigned_employee) {
       toast({
         title: 'Error',
@@ -209,61 +204,21 @@ const AddEventModal = ({
       return;
     }
 
-    try {
-      setLoading(true);
-      
-      // Combine date and time
-      const [hours, minutes] = startTime.split(':');
-      const eventDateTime = new Date(eventDate);
-      eventDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-
-      const eventData = {
-        name: formData.name,
-        description: formData.description,
-        event_type: formData.event_type,
-        assigned_employee: parseInt(formData.assigned_employee),
-        location: formData.location,
-        status: formData.status,
-        event_date: eventDateTime.toISOString(),
-        ...(formData.duration_minutes && { duration_minutes: parseInt(formData.duration_minutes) }),
-        is_recurring: formData.is_recurring === 'true',
-        ...(formData.is_recurring === 'true' && formData.recurrence_pattern && { 
-          recurrence_pattern: formData.recurrence_pattern 
-        }),
-      };
-
-      if (mode === 'edit' && eventToEdit) {
-        // Update existing event
-        await axiosInstance.put(`${requests.FetchEvents}${eventToEdit.id}/`, eventData);
-        toast({
-          title: 'Success',
-          description: 'Event updated successfully',
-        });
+    setLoading(true);
+    setTimeout(() => {
+      toast({
+        title: 'Success',
+        description: `Event ${mode === 'edit' ? 'updated' : 'created'} successfully (Simulation)`,
+      });
+      if (mode === 'edit') {
         if (onEventUpdated) onEventUpdated();
       } else {
-        // Create new event
-        await axiosInstance.post(requests.CreateEvent, eventData);
-        toast({
-          title: 'Success',
-          description: 'Event created successfully',
-        });
         if (onEventCreated) onEventCreated();
       }
-
-      // Reset form and close modal
+      setLoading(false);
       resetForm();
       onOpenChange(false);
-      
-    } catch (error: any) {
-      console.error('Error saving event:', error);
-      toast({
-        title: 'Error',
-        description: error.response?.data?.error || `Failed to ${mode === 'edit' ? 'update' : 'create'} event`,
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
+    }, 1000);
   };
 
   const resetForm = () => {
@@ -299,13 +254,13 @@ const AddEventModal = ({
             {mode === 'edit' ? 'Edit Event' : 'Create New Event'}
           </DialogTitle>
           <DialogDescription>
-            {mode === 'edit' 
+            {mode === 'edit'
               ? 'Update the event details, assigned employee, and scheduling information.'
               : 'Schedule a new event or meeting with your team members.'
             }
           </DialogDescription>
         </DialogHeader>
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid gap-4">
             <div className="space-y-2">
@@ -542,8 +497,8 @@ const AddEventModal = ({
             >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full sm:w-auto"
               disabled={loading || !formData.name || !formData.assigned_employee || !eventDate || !startTime}
             >

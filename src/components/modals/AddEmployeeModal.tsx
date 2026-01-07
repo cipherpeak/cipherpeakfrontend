@@ -26,20 +26,20 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { format } from 'date-fns';
-import { 
-  CalendarIcon, 
-  Loader2, 
-  Upload, 
-  User, 
+import {
+  CalendarIcon,
+  Loader2,
+  Upload,
+  User,
   X,
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import axiosInstance from '@/axios';
-import requests from '@/lib/urls';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { toast } from 'sonner';
+import axiosInstance from '@/axios/axios';
 
 interface Employee {
   id: number;
@@ -77,10 +77,10 @@ interface AddEmployeeModalProps {
   mode?: 'add' | 'edit';
 }
 
-const AddEmployeeModal = ({ 
-  open, 
-  onOpenChange, 
-  onEmployeeAdded, 
+const AddEmployeeModal = ({
+  open,
+  onOpenChange,
+  onEmployeeAdded,
   onEmployeeUpdated,
   employeeToEdit,
   mode = 'add'
@@ -94,19 +94,19 @@ const AddEmployeeModal = ({
     phone_number: '',
     date_of_birth: '',
     gender: '',
-    
+
     // Address Information
     address: '',
     city: '',
     state: '',
     postal_code: '',
     country: '',
-    
+
     // Emergency Contact
     emergency_contact_name: '',
     emergency_contact_phone: '',
     emergency_contact_relation: '',
-    
+
     // Employment Information
     employee_id: '',
     role: 'employee',
@@ -116,7 +116,7 @@ const AddEmployeeModal = ({
     current_status: 'active',
     joining_date: '',
   });
-  
+
   const [joinDate, setJoinDate] = useState<Date>();
   const [dobDate, setDobDate] = useState<Date>();
   const [loading, setLoading] = useState(false);
@@ -216,44 +216,44 @@ const AddEmployeeModal = ({
     }
   }, [open, employeeToEdit, mode]);
 
-const handleFileSelect = (file: File) => {
-  if (file) {
-    console.log("Selected file:", file);
-    
-    // Validate file type
-    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-    if (!validTypes.includes(file.type)) {
-      setError('Please select a valid image file (JPEG, PNG, WebP)');
-      return;
+  const handleFileSelect = (file: File) => {
+    if (file) {
+      console.log("Selected file:", file);
+
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+      if (!validTypes.includes(file.type)) {
+        setError('Please select a valid image file (JPEG, PNG, WebP)');
+        return;
+      }
+
+      // Validate file size (5MB max)
+      const maxSize = 5 * 1024 * 1024;
+      if (file.size > maxSize) {
+        setError('Image size must be less than 5MB');
+        return;
+      }
+
+      setError(null);
+
+      // Set the profile image FIRST
+      console.log("Setting profileImage state to:", file);
+      setProfileImage(file);
+
+      // Then create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        console.log("FileReader result ready, setting preview");
+        setProfileImagePreview(result);
+      };
+      reader.onerror = () => {
+        console.error("FileReader error");
+        setError('Failed to read the image file');
+      };
+      reader.readAsDataURL(file);
     }
-
-    // Validate file size (5MB max)
-    const maxSize = 5 * 1024 * 1024;
-    if (file.size > maxSize) {
-      setError('Image size must be less than 5MB');
-      return;
-    }
-
-    setError(null);
-
-    // Set the profile image FIRST
-    console.log("Setting profileImage state to:", file);
-    setProfileImage(file);
-    
-    // Then create preview
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      console.log("FileReader result ready, setting preview");
-      setProfileImagePreview(result);
-    };
-    reader.onerror = () => {
-      console.error("FileReader error");
-      setError('Failed to read the image file');
-    };
-    reader.readAsDataURL(file);
-  }
-};
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -265,16 +265,16 @@ const handleFileSelect = (file: File) => {
     setIsDragging(false);
   };
 
-const handleDrop = (e: React.DragEvent) => {
-  e.preventDefault();
-  setIsDragging(false);
-  
-  const files = e.dataTransfer.files;
-  console.log("Files dropped:", files);
-  if (files && files[0]) {
-    handleFileSelect(files[0]);
-  }
-};
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+
+    const files = e.dataTransfer.files;
+    console.log("Files dropped:", files);
+    if (files && files[0]) {
+      handleFileSelect(files[0]);
+    }
+  };
 
   const removeProfileImage = () => {
     setProfileImage(null);
@@ -285,101 +285,105 @@ const handleDrop = (e: React.DragEvent) => {
   };
 
   console.log(profileImage);
-  
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    setUploadProgress(0);
+    setUploadProgress(10);
+
+    const submissionData = new FormData();
+
+    // Append text fields
+    Object.keys(formData).forEach(key => {
+      const value = formData[key as keyof typeof formData];
+      if (value !== null && value !== undefined && value !== '') {
+        submissionData.append(key, value as string);
+      }
+    });
+
+    // Append dates if selected
+    if (joinDate) {
+      submissionData.append('joining_date', format(joinDate, 'yyyy-MM-dd'));
+    }
+    if (dobDate) {
+      submissionData.append('date_of_birth', format(dobDate, 'yyyy-MM-dd'));
+    }
+
+    // Append profile image if selected
+    if (profileImage) {
+      submissionData.append('profile_image', profileImage);
+    }
+
+    // Append role explicitly if needed
+    if (formData.role) {
+      submissionData.append('role', formData.role);
+    }
 
     try {
-      const formDataToSend = new FormData();
+      setUploadProgress(50);
+      let response;
 
-      // Add all text fields
-      formDataToSend.append('username', formData.username);
-      formDataToSend.append('email', formData.email);
-      formDataToSend.append('first_name', formData.first_name);
-      formDataToSend.append('last_name', formData.last_name);
-      formDataToSend.append('phone_number', formData.phone_number || '');
-      formDataToSend.append('gender', formData.gender || '');
-      formDataToSend.append('address', formData.address || '');
-      formDataToSend.append('city', formData.city || '');
-      formDataToSend.append('state', formData.state || '');
-      formDataToSend.append('postal_code', formData.postal_code || '');
-      formDataToSend.append('country', formData.country || '');
-      formDataToSend.append('emergency_contact_name', formData.emergency_contact_name || '');
-      formDataToSend.append('emergency_contact_phone', formData.emergency_contact_phone || '');
-      formDataToSend.append('emergency_contact_relation', formData.emergency_contact_relation || '');
-      formDataToSend.append('employee_id', formData.employee_id || '');
-      formDataToSend.append('role', formData.role);
-      formDataToSend.append('department', formData.department || '');
-      formDataToSend.append('designation', formData.designation || '');
-      formDataToSend.append('salary', formData.salary || '');
-      formDataToSend.append('current_status', formData.current_status);
-      
-      // Add dates
-      if (joinDate) {
-        formDataToSend.append('joining_date', format(joinDate, 'yyyy-MM-dd'));
-      }
-      if (dobDate) {
-        formDataToSend.append('date_of_birth', format(dobDate, 'yyyy-MM-dd'));
-      }
-
-      // Add profile image - THIS IS CRITICAL
-      if (profileImage) {
-        console.log('Adding profile image to FormData:', profileImage); 
-        formDataToSend.append('profile_image', profileImage);
-      }
-
-      // Debug: Check FormData contents
-      console.log('FormData entries:');
-      for (let pair of formDataToSend.entries()) {
-        console.log(pair[0] + ': ', pair[1]);
-      }
-
-      const url = mode === 'edit' && employeeToEdit 
-        ? `${requests.UpdateEmployees}${employeeToEdit.id}/update/`
-        : `${requests.CreateEmployees}`;
-
-      const method = mode === 'edit' ? 'put' : 'post';
-
-      const response = await axiosInstance[method](url, formDataToSend, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        onUploadProgress: (progressEvent) => {
-          const progress = progressEvent.total ? 
-            (progressEvent.loaded / progressEvent.total) * 100 : 0;
-          setUploadProgress(progress);
-        },
-      });
-
-      console.log(`Employee ${mode === 'edit' ? 'updated' : 'created'}:`, response.data);
-      
-      resetForm();
-      if (mode === 'edit' && onEmployeeUpdated) {
-        onEmployeeUpdated();
+      if (mode === 'edit' && employeeToEdit) {
+        // Update existing employee
+        response = await axiosInstance.patch(`auth/employees/${employeeToEdit.id}/update/`, submissionData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 100));
+            setUploadProgress(percentCompleted);
+          },
+        });
+        toast.success("Employee updated successfully");
+        if (onEmployeeUpdated) onEmployeeUpdated();
       } else {
+        // Create new employee
+        response = await axiosInstance.post('auth/employees/create/', submissionData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 100));
+            setUploadProgress(percentCompleted);
+          },
+        });
+        toast.success("Employee created successfully");
         onEmployeeAdded();
       }
+
+      setUploadProgress(100);
       onOpenChange(false);
-      
+      resetForm();
+
     } catch (err: any) {
-      console.error(`Error ${mode === 'edit' ? 'updating' : 'creating'} employee:`, err);
-      setError(
-        err.response?.data?.error || 
-        err.response?.data?.message || 
-        `Failed to ${mode === 'edit' ? 'update' : 'create'} employee. Please try again.`
-      );
+      console.error("Error submitting form:", err);
+      // Extract error message from API response
+      let errorMessage = "Failed to save employee. Please try again.";
+
+      if (err.response && err.response.data) {
+        if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        } else if (typeof err.response.data === 'object') {
+          // If it's a field error map, take the first one
+          const firstError = Object.values(err.response.data)[0];
+          if (Array.isArray(firstError)) {
+            errorMessage = firstError[0] as string;
+          } else {
+            errorMessage = JSON.stringify(err.response.data);
+          }
+        }
+      }
+
+      setError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
       setUploadProgress(0);
     }
   };
 
-
-  
 
   const resetForm = () => {
     setFormData({
@@ -438,18 +442,18 @@ const handleDrop = (e: React.DragEvent) => {
                 {mode === 'edit' ? 'Edit Employee' : 'Add New Employee'}
               </DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground mt-1">
-                {mode === 'edit' 
+                {mode === 'edit'
                   ? 'Update employee information and details.'
                   : 'Add a new team member to your organization with their complete details.'
                 }
               </DialogDescription>
             </div>
             {mode === 'edit' && employeeToEdit && (
-              <Badge 
+              <Badge
                 variant={
                   employeeToEdit.current_status === 'active' ? 'default' :
-                  employeeToEdit.current_status === 'on_leave' ? 'secondary' :
-                  'outline'
+                    employeeToEdit.current_status === 'on_leave' ? 'secondary' :
+                      'outline'
                 }
                 className="capitalize"
               >
@@ -458,7 +462,7 @@ const handleDrop = (e: React.DragEvent) => {
             )}
           </div>
         </DialogHeader>
-        
+
         {error && (
           <div className="mx-6 mt-4 flex items-center gap-2 bg-destructive/15 text-destructive text-sm p-3 rounded-lg border border-destructive/20">
             <AlertCircle className="h-4 w-4 flex-shrink-0" />
@@ -487,7 +491,7 @@ const handleDrop = (e: React.DragEvent) => {
                 Optional • Max 5MB
               </span>
             </div>
-            
+
             <div className="flex flex-col sm:flex-row gap-6 items-start">
               {/* Image Preview */}
               <div className="flex-shrink-0">
@@ -520,8 +524,8 @@ const handleDrop = (e: React.DragEvent) => {
                 <div
                   className={cn(
                     "border-2 border-dashed rounded-xl p-6 text-center transition-all duration-200 cursor-pointer",
-                    isDragging 
-                      ? "border-primary bg-primary/5" 
+                    isDragging
+                      ? "border-primary bg-primary/5"
                       : "border-border/60 hover:border-primary/50 hover:bg-primary/3",
                     profileImagePreview && "bg-success/5 border-success/30"
                   )}
@@ -530,23 +534,23 @@ const handleDrop = (e: React.DragEvent) => {
                   onDrop={handleDrop}
                   onClick={() => fileInputRef.current?.click()}
                 >
-<input
-  ref={fileInputRef}
-  type="file"
-  accept="image/jpeg,image/jpg,image/png,image/webp"
-  onChange={(e) => {
-    console.log("File input changed:", e.target.files);
-    if (e.target.files?.[0]) {
-      handleFileSelect(e.target.files[0]);
-    }
-  }}
-  className="hidden"
-/>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    onChange={(e) => {
+                      console.log("File input changed:", e.target.files);
+                      if (e.target.files?.[0]) {
+                        handleFileSelect(e.target.files[0]);
+                      }
+                    }}
+                    className="hidden"
+                  />
                   <div className="space-y-3">
                     <div className={cn(
                       "w-12 h-12 rounded-full flex items-center justify-center mx-auto transition-colors",
-                      profileImagePreview 
-                        ? "bg-success/20 text-success" 
+                      profileImagePreview
+                        ? "bg-success/20 text-success"
                         : "bg-primary/10 text-primary"
                     )}>
                       {profileImagePreview ? (
@@ -555,19 +559,19 @@ const handleDrop = (e: React.DragEvent) => {
                         <Upload className="h-6 w-6" />
                       )}
                     </div>
-                    
+
                     <div className="space-y-1">
                       <p className="font-medium text-foreground">
                         {profileImagePreview ? 'Image Selected' : 'Upload Profile Image'}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {profileImagePreview 
+                        {profileImagePreview
                           ? 'Click or drag to change the image'
                           : 'Drag & drop or click to browse'
                         }
                       </p>
                     </div>
-                    
+
                     <p className="text-xs text-muted-foreground">
                       JPEG, PNG, WebP • Max 5MB
                     </p>
@@ -583,7 +587,7 @@ const handleDrop = (e: React.DragEvent) => {
               <div className="w-2 h-2 rounded-full bg-primary" />
               Personal Information
             </h4>
-            
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="space-y-3">
                 <Label htmlFor="username" className="text-sm font-medium">
@@ -993,8 +997,8 @@ const handleDrop = (e: React.DragEvent) => {
             >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               className="w-full sm:w-40 h-11"
               disabled={loading}
             >

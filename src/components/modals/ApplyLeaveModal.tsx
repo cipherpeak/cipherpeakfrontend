@@ -1,0 +1,309 @@
+// components/modals/ApplyLeaveModal.tsx
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { CalendarIcon, Paperclip, X } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+
+interface ApplyLeaveModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onApplyLeave: (leaveData: LeaveFormData) => void;
+}
+
+export interface LeaveFormData {
+  category: string;
+  fromDate: Date | undefined;
+  toDate: Date | undefined;
+  totalDays: number;
+  reason: string;
+  attachment: File | null;
+}
+
+const leaveCategories = [
+  { value: 'annual', label: 'Annual Leave' },
+  { value: 'sick', label: 'Sick Leave' },
+  { value: 'maternity', label: 'Maternity Leave' },
+  { value: 'paternity', label: 'Paternity Leave' },
+  { value: 'unpaid', label: 'Unpaid Leave' },
+  { value: 'emergency', label: 'Emergency Leave' },
+  { value: 'bereavement', label: 'Bereavement Leave' },
+  { value: 'study', label: 'Study Leave' },
+];
+
+const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave }: ApplyLeaveModalProps) => {
+  const [formData, setFormData] = useState<LeaveFormData>({
+    category: '',
+    fromDate: undefined,
+    toDate: undefined,
+    totalDays: 0,
+    reason: '',
+    attachment: null,
+  });
+
+  const calculateTotalDays = (from: Date | undefined, to: Date | undefined) => {
+    if (!from || !to) return 0;
+    const diffTime = Math.abs(to.getTime() - from.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    return diffDays;
+  };
+
+  const handleDateChange = (type: 'from' | 'to', date: Date | undefined) => {
+    if (type === 'from') {
+      setFormData(prev => {
+        const newFromDate = date;
+        const totalDays = calculateTotalDays(newFromDate, prev.toDate);
+        return { ...prev, fromDate: newFromDate, totalDays };
+      });
+    } else {
+      setFormData(prev => {
+        const newToDate = date;
+        const totalDays = calculateTotalDays(prev.fromDate, newToDate);
+        return { ...prev, toDate: newToDate, totalDays };
+      });
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] || null;
+    setFormData(prev => ({ ...prev, attachment: file }));
+  };
+
+  const handleRemoveFile = () => {
+    setFormData(prev => ({ ...prev, attachment: null }));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onApplyLeave(formData);
+    setFormData({
+      category: '',
+      fromDate: undefined,
+      toDate: undefined,
+      totalDays: 0,
+      reason: '',
+      attachment: null,
+    });
+    onOpenChange(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-bold">Apply for Leave</DialogTitle>
+          <DialogDescription>
+            Fill in the details below to apply for leave. All fields marked with * are required.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit}>
+          <div className="grid gap-6 py-4">
+            {/* Leave Category */}
+            <div className="grid gap-2">
+              <Label htmlFor="category" className="text-sm font-medium">
+                Category of Leave *
+              </Label>
+              <Select
+                value={formData.category}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, category: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select leave category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {leaveCategories.map((category) => (
+                    <SelectItem key={category.value} value={category.value}>
+                      {category.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Date Range */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid gap-2">
+                <Label className="text-sm font-medium">From Date *</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.fromDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.fromDate ? format(formData.fromDate, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.fromDate}
+                      onSelect={(date) => handleDateChange('from', date)}
+                      disabled={(date) => date < new Date()}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              <div className="grid gap-2">
+                <Label className="text-sm font-medium">To Date *</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.toDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.toDate ? format(formData.toDate, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.toDate}
+                      onSelect={(date) => handleDateChange('to', date)}
+                      disabled={(date) => formData.fromDate ? date < formData.fromDate : date < new Date()}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
+
+            {/* Total Days */}
+            <div className="grid gap-2">
+              <Label htmlFor="totalDays" className="text-sm font-medium">
+                Total Number of Leave Days
+              </Label>
+              <Input
+                id="totalDays"
+                type="number"
+                value={formData.totalDays || ''}
+                readOnly
+                className="bg-muted/50"
+              />
+              <p className="text-xs text-muted-foreground">
+                Calculated automatically based on selected dates
+              </p>
+            </div>
+
+            {/* Reason for Leave */}
+            <div className="grid gap-2">
+              <Label htmlFor="reason" className="text-sm font-medium">
+                Reason for Leave *
+              </Label>
+              <Textarea
+                id="reason"
+                placeholder="Please provide details about your leave request..."
+                value={formData.reason}
+                onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
+                className="min-h-[100px]"
+                required
+              />
+            </div>
+
+            {/* Attach Media */}
+            <div className="grid gap-2">
+              <Label htmlFor="attachment" className="text-sm font-medium">
+                Attach Supporting Documents
+              </Label>
+              {formData.attachment ? (
+                <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
+                  <div className="flex items-center gap-3">
+                    <Paperclip className="h-4 w-4 text-primary" />
+                    <div>
+                      <p className="text-sm font-medium">{formData.attachment.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {(formData.attachment.size / 1024).toFixed(2)} KB
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRemoveFile}
+                    className="h-8 w-8 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="border-2 border-dashed rounded-lg p-6 text-center hover:border-primary transition-colors">
+                  <Paperclip className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  <Label
+                    htmlFor="attachment-upload"
+                    className="cursor-pointer text-sm font-medium text-primary hover:underline"
+                  >
+                    Click to upload file
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    PDF, JPG, PNG up to 5MB
+                  </p>
+                  <Input
+                    id="attachment-upload"
+                    type="file"
+                    className="hidden"
+                    onChange={handleFileChange}
+                    accept=".pdf,.jpg,.jpeg,.png"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              className="w-full sm:w-auto"
+              disabled={!formData.category || !formData.fromDate || !formData.toDate || !formData.reason}
+            >
+              Submit Leave Request
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+export default ApplyLeaveModal;

@@ -13,12 +13,13 @@ import {
 } from "@/components/ui/card";
 import { EyeIcon, EyeOffIcon } from "lucide-react";
 import {
-  loginFailure,
   loginSuccess,
+  loginFailure,
   startLoading,
 } from "@/Redux/slices/authSlice";
-import axiosInstance from "@/axios";
-import requests from "@/lib/urls";
+import { toast } from "sonner";
+import axios from "axios";
+import { backendUrl } from "@/components/Constants/Constants";
 import logo from "../assets/cipher_scar[1].png";
 import logotwo from "../assets/cipher_peak full.png";
 
@@ -27,51 +28,39 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setError("");
     dispatch(startLoading(true));
 
     try {
-      const response = await axiosInstance.post(`${requests.LoginUser}`, {
-        username: username,
-        password: password,
+      const response = await axios.post(`${backendUrl}auth/login/`, {
+        username,
+        password,
       });
 
-      const { user, access, refresh } = response.data;
+      console.log("Login successful:", response.data);
 
-      // Dispatch login success with the correct payload structure
+      // Dispatch login success
       dispatch(
         loginSuccess({
-          user: user,
-          access_token: access,
-          refresh_token: refresh,
+          user: response.data.user,
+          access_token: response.data.access,
+          refresh_token: response.data.refresh,
         })
       );
 
-      // Save to localStorage
-      const authTokens = {
-        user: user,
-        token: access,
-        refresh: refresh,
-      };
-      localStorage.setItem("cipherauthTokens", JSON.stringify(authTokens));
-
-      // Navigate to home page
+      toast.success("Login successful");
       navigate("/");
     } catch (error: any) {
-      console.error("Login error:", error);
-      setError(
-        error.response?.data?.detail ||
-          error.response?.data?.message ||
-          "Login failed. Please check your credentials."
-      );
+      console.error("Login failed:", error);
       dispatch(loginFailure());
+
+      const errorMessage = error.response?.data?.detail || "Invalid credentials. Please try again.";
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
       dispatch(startLoading(false));
@@ -97,12 +86,6 @@ const Login = () => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {error && (
-            <div className="mb-4 p-3 bg-destructive/10 border border-destructive/20 rounded-md">
-              <p className="text-destructive text-sm text-center">{error}</p>
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>

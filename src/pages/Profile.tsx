@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,35 +16,63 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Calendar, 
-  Building, 
-  Save, 
+import {
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  Building,
+  Save,
   Camera,
   Bell,
   Shield,
   Palette,
-  Clock
+  Clock,
+  Loader2,
 } from 'lucide-react';
+// Reverting to static mode
 
 const Profile = () => {
-  const [profileData, setProfileData] = useState({
-    firstName: 'John',
-    lastName: 'Doe',
-    email: 'john.doe@company.com',
-    phone: '+1 (555) 123-4567',
-    position: 'Software Engineer',
-    department: 'Engineering',
-    location: 'New York, NY',
-    joinDate: '2022-03-15',
-    bio: 'Experienced software engineer with a passion for creating innovative solutions. Specializes in full-stack development and team leadership.',
+  const [profileData, setProfileData] = useState<any>({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    position: '',
+    department: '',
+    location: '',
+    joinDate: '',
+    bio: '',
     timezone: 'America/New_York',
     language: 'English',
   });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const fetchUserProfile = async () => {
+    setLoading(true);
+    setTimeout(() => {
+      setProfileData({
+        firstName: 'Admin',
+        lastName: 'User',
+        email: 'admin@cipherpeak.com',
+        phone: '+1 234 567 890',
+        position: 'Chief Administrator',
+        department: 'Management',
+        location: 'New York, USA',
+        joinDate: 'Jan 2024',
+        bio: 'Experienced administrator with a focus on system efficiency and team collaboration.',
+        timezone: 'America/New_York',
+        language: 'English',
+      });
+      setLoading(false);
+    }, 500);
+  };
+
+  useEffect(() => {
+    fetchUserProfile();
+  }, []);
 
   const [notifications, setNotifications] = useState({
     emailNotifications: true,
@@ -62,8 +90,11 @@ const Profile = () => {
   });
 
   const handleProfileUpdate = () => {
-    // Handle profile update logic here
-    console.log('Profile updated:', profileData);
+    setSaving(true);
+    setTimeout(() => {
+      setSaving(false);
+      alert('Profile updated successfully (Simulation)');
+    }, 1000);
   };
 
   const handleNotificationUpdate = (key: string, value: boolean) => {
@@ -108,9 +139,20 @@ const Profile = () => {
   ];
 
   const skills = [
-    'JavaScript', 'TypeScript', 'React', 'Node.js', 'Python', 
+    'JavaScript', 'TypeScript', 'React', 'Node.js', 'Python',
     'Database Design', 'Team Leadership', 'Project Management'
   ];
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -365,9 +407,9 @@ const Profile = () => {
                     </div>
                   </div>
 
-                  <Button onClick={handleProfileUpdate} className="flex items-center gap-2">
-                    <Save className="h-4 w-4" />
-                    Save Changes
+                  <Button onClick={handleProfileUpdate} disabled={saving} className="flex items-center gap-2">
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {saving ? 'Saving...' : 'Save Changes'}
                   </Button>
                 </CardContent>
               </Card>
@@ -524,11 +566,10 @@ const Profile = () => {
                   <div className="space-y-4">
                     {recentActivity.map((activity) => (
                       <div key={activity.id} className="flex items-center gap-3 p-3 border border-border rounded-lg">
-                        <div className={`h-2 w-2 rounded-full ${
-                          activity.type === 'task' ? 'bg-primary' :
+                        <div className={`h-2 w-2 rounded-full ${activity.type === 'task' ? 'bg-primary' :
                           activity.type === 'meeting' ? 'bg-success' :
-                          activity.type === 'review' ? 'bg-warning' : 'bg-muted'
-                        }`} />
+                            activity.type === 'review' ? 'bg-warning' : 'bg-muted'
+                          }`} />
                         <div className="flex-1">
                           <p className="text-sm font-medium">{activity.action}</p>
                           <p className="text-xs text-muted-foreground">{activity.timestamp}</p>

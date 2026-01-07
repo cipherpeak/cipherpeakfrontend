@@ -23,8 +23,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Loader2, Building, User, MapPin, FileText, BarChart3, DollarSign, Calendar, CreditCard, Clock, AlertCircle } from 'lucide-react';
-import axiosInstance from '@/axios';
-import requests from '@/lib/urls';
+import { requests } from '@/lib/urls';
+import axiosInstance from '@/axios/axios';
+import { toast } from 'sonner';
+// Reverting to static mode
+
+
 import { log } from 'console';
 
 interface Client {
@@ -94,13 +98,13 @@ interface AddClientModalProps {
   mode: 'add' | 'edit';
 }
 
-const AddClientModal = ({ 
-  open, 
-  onOpenChange, 
+const AddClientModal = ({
+  open,
+  onOpenChange,
   onClientAdded,
   onClientUpdated,
   clientToEdit,
-  mode 
+  mode
 }: AddClientModalProps) => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
@@ -112,13 +116,13 @@ const AddClientModal = ({
     industry: '',
     status: 'prospect',
     description: '',
-    
+
     // Contact Information
     owner_name: '',
     contact_person_name: '',
     contact_email: '',
     contact_phone: '',
-    
+
     // Social Media
     instagram_id: '',
     facebook_id: '',
@@ -126,37 +130,37 @@ const AddClientModal = ({
     google_my_business: '',
     linkedin_url: '',
     twitter_handle: '',
-    
+
     // Content Requirements
     videos_per_month: 0,
     posters_per_month: 0,
     reels_per_month: 0,
     stories_per_month: 0,
-    
+
     // Contract & Timeline
     onboarding_date: new Date().toISOString().split('T')[0],
     contract_start_date: '',
     contract_end_date: '',
-    
+
     // Payment Information
     payment_cycle: 'monthly',
     payment_date: 1,
     current_month_payment_status: 'pending',
     monthly_retainer: '',
-    
+
     // New Payment Timing Fields
     payment_timing: 'on_time',
     early_payment_date: '',
     early_payment_amount: '',
     early_payment_notes: '',
-    
+
     // Location
     address: '',
     city: '',
     state: '',
     country: '',
     postal_code: '',
-    
+
     // Business Information
     website: '',
     business_registration_number: '',
@@ -221,7 +225,7 @@ const AddClientModal = ({
   }));
 
 
-  
+
 
   // Initialize form data
   useEffect(() => {
@@ -266,7 +270,7 @@ const AddClientModal = ({
         business_registration_number: clientToEdit.business_registration_number || '',
         tax_id: clientToEdit.tax_id || '',
       });
-      
+
       // Show early payment section if there's early payment data
       if (clientToEdit.early_payment_date || clientToEdit.current_month_payment_status === 'early_paid') {
         setShowEarlyPaymentSection(true);
@@ -317,40 +321,51 @@ const AddClientModal = ({
     setActiveTab('basic');
   }, [clientToEdit, mode, open]);
 
+
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    try {
-      const backendData = {
-        ...formData,
-        videos_per_month: parseInt(formData.videos_per_month.toString()),
-        posters_per_month: parseInt(formData.posters_per_month.toString()),
-        reels_per_month: parseInt(formData.reels_per_month.toString()),
-        stories_per_month: parseInt(formData.stories_per_month.toString()),
-        payment_date: parseInt(formData.payment_date.toString()),
-        monthly_retainer: formData.monthly_retainer ? parseFloat(formData.monthly_retainer.toString()) : null,
-        early_payment_amount: formData.early_payment_amount ? parseFloat(formData.early_payment_amount.toString()) : null,
-        // Clear dates if empty
-        contract_start_date: formData.contract_start_date || null,
-        contract_end_date: formData.contract_end_date || null,
-        early_payment_date: formData.early_payment_date || null,
-      };
+    // Create a copy of formData to modify for API submission
+    const dataToSubmit = { ...formData };
 
+    // Handle optional date fields - if empty, send null
+    if (!dataToSubmit.contract_start_date) {
+      (dataToSubmit as any).contract_start_date = null;
+    }
+    if (!dataToSubmit.contract_end_date) {
+      (dataToSubmit as any).contract_end_date = null;
+    }
+    if (!dataToSubmit.onboarding_date) {
+      (dataToSubmit as any).onboarding_date = null; // Ensure this is also handled if optional
+    }
+    if (!dataToSubmit.early_payment_date) {
+      (dataToSubmit as any).early_payment_date = null;
+    }
+    if (!dataToSubmit.last_payment_date) {
+      (dataToSubmit as any).last_payment_date = null;
+    }
+
+
+    try {
       if (mode === 'add') {
-       const response = await axiosInstance.post(requests.CreateClient, backendData);
-       console.log(response,"this is response");
-       
+        await axiosInstance.post(requests.ClientCreate, dataToSubmit);
         onClientAdded();
-      } else {
-        await axiosInstance.put(`${requests.UpdateClient}${clientToEdit?.id}/`, backendData);
+      } else if (clientToEdit) {
+        await axiosInstance.put(requests.ClientUpdate(clientToEdit.id), dataToSubmit);
         onClientUpdated();
       }
       onOpenChange(false);
     } catch (error: any) {
-      console.error('Error saving client:', error);
-      const errorMessage = error.response?.data?.details || error.response?.data?.error || `Failed to ${mode} client`;
-      alert(errorMessage);
+      console.error("Error saving client:", error);
+      if (error.response) {
+        console.error("Server Error Response:", error.response.data);
+        toast.error(`Error: ${JSON.stringify(error.response.data)}`);
+      } else {
+        toast.error("Failed to save client details");
+      }
+      // Don't close modal on error, let them try again
     } finally {
       setLoading(false);
     }
@@ -363,31 +378,19 @@ const AddClientModal = ({
     }));
   };
 
-  const handleMarkEarlyPayment = async () => {
+  const handleMarkEarlyPayment = () => {
     if (!clientToEdit) return;
-    
     setLoading(true);
-    try {
-      await axiosInstance.post(`${requests.EarlyPaid}${clientToEdit.id}/mark-early-payment/`, {
-        payment_date: formData.early_payment_date || new Date().toISOString().split('T')[0],
-        amount: formData.early_payment_amount || formData.monthly_retainer,
-        notes: formData.early_payment_notes
-      });
-      
+    setTimeout(() => {
       onClientUpdated();
       onOpenChange(false);
-    } catch (error: any) {
-      console.error('Error marking early payment:', error);
-      const errorMessage = error.response?.data?.details || error.response?.data?.error || 'Failed to mark early payment';
-      alert(errorMessage);
-    } finally {
       setLoading(false);
-    }
+    }, 1000);
   };
 
   const calculateTotalContent = () => {
-    return formData.videos_per_month + formData.posters_per_month + 
-           formData.reels_per_month + formData.stories_per_month;
+    return formData.videos_per_month + formData.posters_per_month +
+      formData.reels_per_month + formData.stories_per_month;
   };
 
   const getPaymentCycleDescription = () => {
@@ -419,10 +422,10 @@ const AddClientModal = ({
   };
 
   const isEarlyPaymentEligible = () => {
-    return mode === 'edit' && 
-           clientToEdit && 
-           clientToEdit.current_month_payment_status !== 'paid' && 
-           clientToEdit.current_month_payment_status !== 'early_paid';
+    return mode === 'edit' &&
+      clientToEdit &&
+      clientToEdit.current_month_payment_status !== 'paid' &&
+      clientToEdit.current_month_payment_status !== 'early_paid';
   };
 
   return (
@@ -434,13 +437,13 @@ const AddClientModal = ({
             {mode === 'add' ? 'Add New Client' : 'Edit Client'}
           </DialogTitle>
           <DialogDescription>
-            {mode === 'add' 
+            {mode === 'add'
               ? 'Complete all sections to add a new client to your portfolio.'
               : 'Update client information across all sections.'
             }
           </DialogDescription>
         </DialogHeader>
-        
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid grid-cols-6 mb-6">
             <TabsTrigger value="basic" className="flex items-center gap-2">
@@ -934,7 +937,7 @@ const AddClientModal = ({
                                   <AlertCircle className="h-4 w-4" />
                                   <span>Record an early payment for this client</span>
                                 </div>
-                                
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   <div className="space-y-2">
                                     <Label htmlFor="early_payment_date">Early Payment Date</Label>
@@ -987,8 +990,8 @@ const AddClientModal = ({
                               <div className="text-center py-4">
                                 <Clock className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                                 <p className="text-sm text-muted-foreground">
-                                  {clientToEdit?.current_month_payment_status === 'paid' || 
-                                   clientToEdit?.current_month_payment_status === 'early_paid'
+                                  {clientToEdit?.current_month_payment_status === 'paid' ||
+                                    clientToEdit?.current_month_payment_status === 'early_paid'
                                     ? 'Payment has already been marked as paid for this month.'
                                     : 'Client payment status cannot be updated to early paid.'}
                                 </p>
@@ -1015,7 +1018,7 @@ const AddClientModal = ({
                               </div>
                             )}
                           </div>
-                          
+
                           <div className="space-y-2">
                             {clientToEdit.early_payment_date && (
                               <div className="flex items-center gap-2">
@@ -1143,9 +1146,9 @@ const AddClientModal = ({
             <DialogFooter className="flex flex-col sm:flex-row gap-2 pt-6 border-t">
               <div className="flex-1 text-sm text-muted-foreground">
                 {activeTab !== 'business' && (
-                  <Button 
-                    type="button" 
-                    variant="outline" 
+                  <Button
+                    type="button"
+                    variant="outline"
                     onClick={() => {
                       const tabs = ['basic', 'contact', 'social', 'content', 'payment', 'business'];
                       const currentIndex = tabs.indexOf(activeTab);
@@ -1154,16 +1157,16 @@ const AddClientModal = ({
                       }
                     }}
                   >
-                    Next: { 
+                    Next: {
                       activeTab === 'basic' ? 'Contact' :
-                      activeTab === 'contact' ? 'Social' :
-                      activeTab === 'social' ? 'Content' :
-                      activeTab === 'content' ? 'Payment' : 'Business'
+                        activeTab === 'contact' ? 'Social' :
+                          activeTab === 'social' ? 'Content' :
+                            activeTab === 'content' ? 'Payment' : 'Business'
                     }
                   </Button>
                 )}
               </div>
-              
+
               <div className="flex gap-2">
                 <Button
                   type="button"
@@ -1173,8 +1176,8 @@ const AddClientModal = ({
                 >
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={loading}
                 >
                   {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}

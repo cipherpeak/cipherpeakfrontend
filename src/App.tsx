@@ -1,3 +1,9 @@
+
+
+
+
+
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -14,6 +20,7 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import PrivateRoute from "./lib/PrivateRoute";
 import Dolla from "./pages/Dolla";
+import LeaveManagement from "./pages/LeaveManagement";
 
 const queryClient = new QueryClient();
 
@@ -74,6 +81,17 @@ const App = () => (
                 </PrivateRoute>
               }
             />
+
+            <Route
+              path="leave-management"
+              element={
+                <PrivateRoute>
+                  <LeaveManagement/>
+                </PrivateRoute>
+              }
+            />  
+
+
             <Route
               path="dolla"
               element={
