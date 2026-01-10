@@ -143,9 +143,16 @@ const Clients = () => {
     }
   };
 
-  // Mark payment as pa id
-  const handleMarkPaymentPaid = (clientId: number) => {
-    setClients(prev => prev.map(c => c.id === clientId ? { ...c, current_month_payment_status: 'paid' } : c));
+  // Mark payment as paid
+  const handleMarkPaymentPaid = async (clientId: number) => {
+    try {
+      await axiosInstance.post(requests.ClientPaymentProcess(clientId));
+      setClients(prev => prev.map(c => c.id === clientId ? { ...c, current_month_payment_status: 'paid' } : c));
+      toast.success('Payment marked as paid');
+    } catch (err: any) {
+      console.error('Error marking payment as paid:', err);
+      toast.error('Failed to mark payment as paid');
+    }
   };
 
   const handleViewDetails = (client: Client) => {
@@ -255,13 +262,31 @@ const Clients = () => {
     }
   };
 
-  const getPaymentStatusColor = (status: string) => {
+  // const getPaymentStatusColor = (status: string) => {
+  //   switch (status.toLowerCase()) {
+  //     case 'paid': return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-800';
+  //     case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-300 dark:border-yellow-800';
+  //     case 'overdue': return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-300 dark:border-red-800';
+  //     case 'partial': return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:border-blue-800';
+  //     default: return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
+  //   }
+  // };
+  const getPaymentStatusColor = (status?: string) => {
+    if (!status) return "bg-gray-400 text-white";
+
     switch (status.toLowerCase()) {
-      case 'paid': return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-300 dark:border-green-800';
-      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-300 dark:border-yellow-800';
-      case 'overdue': return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-300 dark:border-red-800';
-      case 'partial': return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900 dark:text-blue-300 dark:border-blue-800';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
+      case "paid":
+        return "bg-green-500 text-white";
+      case "early paid":
+        return "bg-emerald-500 text-white";
+      case "overdue":
+        return "bg-red-500 text-white";
+      case "due today":
+        return "bg-orange-500 text-white";
+      case "pending":
+        return "bg-yellow-500 text-black";
+      default:
+        return "bg-gray-400 text-white";
     }
   };
 

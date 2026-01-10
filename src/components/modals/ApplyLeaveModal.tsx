@@ -1,5 +1,5 @@
 // components/modals/ApplyLeaveModal.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -28,11 +28,18 @@ import {
 import { CalendarIcon, Paperclip, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { requests } from '@/lib/urls';
+import axiosInstance from '@/axios/axios';
+import { useToast } from '@/components/ui/use-toast';
+import { Loader2 } from 'lucide-react';
 
 interface ApplyLeaveModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onApplyLeave: (leaveData: LeaveFormData) => void;
+  onApplyLeave?: (leaveData: LeaveFormData) => void;
+  onSuccess?: () => void;
+  mode?: 'apply' | 'edit';
+  leaveToEdit?: any;
 }
 
 export interface LeaveFormData {
@@ -55,7 +62,9 @@ const leaveCategories = [
   { value: 'study', label: 'Study Leave' },
 ];
 
-const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave }: ApplyLeaveModalProps) => {
+const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = 'apply', leaveToEdit }: ApplyLeaveModalProps) => {
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
   const [formData, setFormData] = useState<LeaveFormData>({
     category: '',
     fromDate: undefined,
@@ -64,6 +73,30 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave }: ApplyLeaveModalPr
     reason: '',
     attachment: null,
   });
+
+
+  // Effect to populate form when in edit mode
+  useEffect(() => {
+    if (mode === 'edit' && leaveToEdit && open) {
+      setFormData({
+        category: leaveToEdit.category || '',
+        fromDate: leaveToEdit.fromDate ? new Date(leaveToEdit.fromDate) : undefined,
+        toDate: leaveToEdit.toDate ? new Date(leaveToEdit.toDate) : undefined,
+        totalDays: parseFloat(leaveToEdit.totalDays) || 0,
+        reason: leaveToEdit.reason || '',
+        attachment: null, // We typically don't set file input values from URL
+      });
+    } else if (mode === 'apply' && open) {
+      setFormData({
+        category: '',
+        fromDate: undefined,
+        toDate: undefined,
+        totalDays: 0,
+        reason: '',
+        attachment: null,
+      });
+    }
+  }, [mode, leaveToEdit, open]);
 
   const calculateTotalDays = (from: Date | undefined, to: Date | undefined) => {
     if (!from || !to) return 0;
@@ -97,27 +130,88 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave }: ApplyLeaveModalPr
     setFormData(prev => ({ ...prev, attachment: null }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onApplyLeave(formData);
-    setFormData({
-      category: '',
-      fromDate: undefined,
-      toDate: undefined,
-      totalDays: 0,
-      reason: '',
-      attachment: null,
-    });
-    onOpenChange(false);
+    setLoading(true);
+    try {
+      // Create FormData if there's an attachment
+      const data = new FormData();
+      data.append('category', formData.category);
+      if (formData.fromDate) data.append('start_date', format(formData.fromDate, 'yyyy-MM-dd'));
+      if (formData.toDate) data.append('end_date', format(formData.toDate, 'yyyy-MM-dd'));
+      data.append('total_days', formData.totalDays.toString());
+      data.append('reason', formData.reason);
+      if (formData.attachment) {
+        data.append('attachment', formData.attachment);
+      }
+
+      if (mode === 'apply') {
+        await axiosInstance.post(requests.LeaveCreate, data, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        toast({
+          title: 'Success',
+          description: 'Leave request submitted successfully',
+        });
+      } else {
+        await axiosInstance.put(requests.LeaveDetail(leaveToEdit.id), data, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        toast({
+          title: 'Success',
+          description: 'Leave request updated successfully',
+        });
+      }
+
+      if (onSuccess) onSuccess();
+      if (onApplyLeave) onApplyLeave(formData);
+
+      setFormData({
+        category: '',
+        fromDate: undefined,
+        toDate: undefined,
+        totalDays: 0,
+        reason: '',
+        attachment: null,
+      });
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error('Error applying for leave:', error);
+      const errorData = error.response?.data;
+      console.log("DEBUG: Backend Error Details:", errorData);
+      let errorMessage = 'Failed to submit leave request';
+
+      if (errorData && typeof errorData === 'object') {
+        errorMessage = Object.entries(errorData)
+          .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
+          .join(' | ');
+      }
+
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold">Apply for Leave</DialogTitle>
+          <DialogTitle className="text-2xl font-bold">
+            {mode === 'apply' ? 'Apply for Leave' : 'Edit Leave Request'}
+          </DialogTitle>
           <DialogDescription>
-            Fill in the details below to apply for leave. All fields marked with * are required.
+            {mode === 'apply'
+              ? 'Fill in the details below to apply for leave. All fields marked with * are required.'
+              : 'Update the details of your leave request below.'}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit}>
@@ -295,8 +389,9 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave }: ApplyLeaveModalPr
             <Button
               type="submit"
               className="w-full sm:w-auto"
-              disabled={!formData.category || !formData.fromDate || !formData.toDate || !formData.reason}
+              disabled={loading || !formData.category || !formData.fromDate || !formData.toDate || !formData.reason}
             >
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Submit Leave Request
             </Button>
           </DialogFooter>

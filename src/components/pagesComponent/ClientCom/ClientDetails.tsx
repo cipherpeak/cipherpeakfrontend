@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Separator } from '@/components/ui/separator';
 import {
   Mail,
   Phone,
@@ -38,6 +39,13 @@ interface ClientDocument {
   file_url: string;
   uploaded_at: string;
   uploaded_by: number;
+}
+
+interface AdminNote {
+  id: number;
+  note: string;
+  created_at: string;
+  created_by_name?: string;
 }
 
 interface Client {
@@ -129,6 +137,11 @@ const ClientDetails = ({
     description: '',
     file: null as File | null,
   });
+  const [adminNotes, setAdminNotes] = useState<AdminNote[]>([]);
+  const [notesLoading, setNotesLoading] = useState(false);
+  const [newNote, setNewNote] = useState('');
+  const [isAddingNote, setIsAddingNote] = useState(false);
+  const [processingPayment, setProcessingPayment] = useState(false);
 
   // Sync clientDocuments with selectedClient.documents
   useEffect(() => {
@@ -140,6 +153,55 @@ const ClientDetails = ({
   }, [selectedClient]);
 
   // Document fetch is handled by parent fetching client details now
+
+  const fetchAdminNotes = async () => {
+    if (!selectedClient) return;
+    setNotesLoading(true);
+    try {
+      const response = await axiosInstance.get(requests.ClientAdminNotes(selectedClient.id));
+      setAdminNotes(response.data);
+    } catch (error) {
+      console.error('Error fetching admin notes:', error);
+    } finally {
+      setNotesLoading(false);
+    }
+  };
+
+  const handleAddAdminNote = async () => {
+    if (!selectedClient || !newNote.trim()) return;
+    setIsAddingNote(true);
+    try {
+      const response = await axiosInstance.post(requests.ClientAdminNoteCreate(selectedClient.id), {
+        note: newNote
+      });
+      setAdminNotes(prev => [response.data, ...prev]);
+      setNewNote('');
+    } catch (error) {
+      console.error('Error adding admin note:', error);
+    } finally {
+      setIsAddingNote(false);
+    }
+  };
+
+  const handleProcessPayment = async () => {
+    if (!selectedClient) return;
+    setProcessingPayment(true);
+    try {
+      if (onMarkPaymentPaid) {
+        await (onMarkPaymentPaid(selectedClient.id) as any);
+      }
+      if (onRefresh) onRefresh();
+    } catch (error) {
+      console.error('Error processing payment:', error);
+    } finally {
+      setProcessingPayment(false);
+    }
+  };
+
+  // Sync admin notes when client changes
+  useEffect(() => {
+    fetchAdminNotes();
+  }, [selectedClient?.id]);
 
   // API call to delete a document - DISABLED (No endpoint provided)
   const handleDeleteDocument = async (documentId: number) => {
@@ -641,6 +703,10 @@ const ClientDetails = ({
             <FileText className="h-4 w-4" />
             <span>Documents</span>
           </TabsTrigger>
+          <TabsTrigger value="notes" className="flex items-center gap-2 py-3">
+            <FileText className="h-4 w-4" />
+            <span>Admin Notes</span>
+          </TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -820,10 +886,15 @@ const ClientDetails = ({
                   </div>
                   <Button
                     className="mt-3 bg-yellow-600 hover:bg-yellow-700"
-                    onClick={() => onMarkPaymentPaid(selectedClient.id)}
+                    onClick={handleProcessPayment}
+                    disabled={processingPayment}
                   >
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    Mark as Paid
+                    {processingPayment ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                    )}
+                    Process Payment
                   </Button>
                 </div>
               )}
@@ -841,10 +912,15 @@ const ClientDetails = ({
                   </div>
                   <Button
                     className="mt-3 bg-red-600 hover:bg-red-700"
-                    onClick={() => onMarkPaymentPaid(selectedClient.id)}
+                    onClick={handleProcessPayment}
+                    disabled={processingPayment}
                   >
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    Mark as Paid
+                    {processingPayment ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                    )}
+                    Process Payment
                   </Button>
                 </div>
               )}
@@ -1017,6 +1093,71 @@ const ClientDetails = ({
                   </Button>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Admin Notes Tab */}
+        <TabsContent value="notes" className="space-y-6 mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Admin Notes
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-4">
+                <textarea
+                  value={newNote}
+                  onChange={(e) => setNewNote(e.target.value)}
+                  placeholder="Add a new internal note about this client..."
+                  className="w-full min-h-[100px] p-3 rounded-lg border bg-background"
+                  disabled={isAddingNote}
+                />
+                <div className="flex justify-end">
+                  <Button
+                    onClick={handleAddAdminNote}
+                    disabled={isAddingNote || !newNote.trim()}
+                  >
+                    {isAddingNote ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Plus className="h-4 w-4 mr-2" />
+                    )}
+                    Add Note
+                  </Button>
+                </div>
+              </div>
+
+              <Separator />
+
+              <div className="space-y-4">
+                {notesLoading ? (
+                  <div className="text-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+                    <p className="text-muted-foreground">Loading notes...</p>
+                  </div>
+                ) : adminNotes.length > 0 ? (
+                  adminNotes.map((note) => (
+                    <div key={note.id} className="p-4 rounded-lg bg-muted/30 border space-y-2">
+                      <div className="flex justify-between items-start">
+                        <p className="font-medium text-sm text-primary">
+                          {note.created_by_name || 'Admin'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {formatDate(note.created_at)}
+                        </p>
+                      </div>
+                      <p className="text-sm">{note.note}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>No admin notes yet</p>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

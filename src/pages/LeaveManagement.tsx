@@ -27,9 +27,14 @@ import {
   AlertCircle,
   TrendingUp,
   CalendarDays,
+  Loader2,
 } from 'lucide-react';
 import ApplyLeaveModal from '@/components/modals/ApplyLeaveModal';
 import { format } from 'date-fns';
+import { requests } from '@/lib/urls';
+import axiosInstance from '@/axios/axios';
+import { useToast } from '@/components/ui/use-toast';
+import { useEffect } from 'react';
 
 // Types
 interface LeaveRequest {
@@ -60,73 +65,62 @@ const LeaveManagement = () => {
   const [isApplyLeaveModalOpen, setIsApplyLeaveModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('my-leaves');
   const [selectedLeave, setSelectedLeave] = useState<LeaveRequest | null>(null);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modalMode, setModalMode] = useState<'apply' | 'edit'>('apply');
+  const { toast } = useToast();
 
-  // Sample data
-  const leaveRequests: LeaveRequest[] = [
-    {
-      id: 1,
-      employeeName: 'John Doe',
-      employeeId: 'CP-001',
-      category: 'Annual Leave',
-      fromDate: '2024-12-20',
-      toDate: '2024-12-25',
-      totalDays: 6,
-      reason: 'Family vacation',
-      status: 'approved',
-      appliedDate: '2024-12-10',
-      reviewedBy: 'Jane Smith',
-      reviewDate: '2024-12-11',
-    },
-    {
-      id: 2,
-      employeeName: 'John Doe',
-      employeeId: 'CP-001',
-      category: 'Sick Leave',
-      fromDate: '2024-12-15',
-      toDate: '2024-12-16',
-      totalDays: 2,
-      reason: 'Medical appointment',
-      status: 'pending',
-      appliedDate: '2024-12-14',
-    },
-    {
-      id: 3,
-      employeeName: 'John Doe',
-      employeeId: 'CP-001',
-      category: 'Emergency Leave',
-      fromDate: '2024-11-10',
-      toDate: '2024-11-10',
-      totalDays: 1,
-      reason: 'Personal emergency',
-      status: 'approved',
-      appliedDate: '2024-11-09',
-      reviewedBy: 'Jane Smith',
-      reviewDate: '2024-11-09',
-    },
-    {
-      id: 4,
-      employeeName: 'John Doe',
-      employeeId: 'CP-001',
-      category: 'Study Leave',
-      fromDate: '2024-10-05',
-      toDate: '2024-10-10',
-      totalDays: 6,
-      reason: 'Exam preparation',
-      status: 'rejected',
-      appliedDate: '2024-09-20',
-      reviewedBy: 'Jane Smith',
-      reviewDate: '2024-09-21',
-      comments: 'Exams fall outside approved study period',
-    },
-  ];
+  const fetchLeaves = async () => {
+    setLoading(true);
+    try {
+      const response = await axiosInstance.get(requests.LeaveList);
+      const data = response.data;
+      console.log("DEBUG: Raw Leave API Response:", data);
 
-  const leaveBalances: LeaveBalance[] = [
-    { category: 'Annual Leave', total: 20, used: 6, remaining: 14 },
-    { category: 'Sick Leave', total: 15, used: 2, remaining: 13 },
-    { category: 'Maternity Leave', total: 180, used: 0, remaining: 180 },
-    { category: 'Paternity Leave', total: 15, used: 0, remaining: 15 },
-    { category: 'Emergency Leave', total: 5, used: 1, remaining: 4 },
-  ];
+      const leaves = Array.isArray(data) ? data : (data.results || data.data || []);
+
+      const formattedLeaves: LeaveRequest[] = leaves.map((leave: any) => ({
+        id: leave.id,
+        employeeName: leave.employee_details ? `${leave.employee_details.first_name} ${leave.employee_details.last_name}` : 'N/A',
+        employeeId: leave.employee_details?.id?.toString() || 'N/A',
+        category: leave.category || 'Annual Leave',
+        fromDate: leave.start_date,
+        toDate: leave.end_date,
+        totalDays: leave.total_days || 0,
+        reason: leave.reason || '',
+        status: leave.status?.toLowerCase() || 'pending',
+        appliedDate: leave.applied_on || leave.created_at || '',
+        reviewedBy: leave.approved_by_details ? `${leave.approved_by_details.first_name} ${leave.approved_by_details.last_name}` : undefined,
+        reviewDate: leave.reviewed_at,
+        comments: leave.comments
+      }));
+
+      console.log("DEBUG: Formatted Leaves Count:", formattedLeaves.length);
+      console.log("DEBUG: First Formatted Leave:", formattedLeaves[0]);
+      setLeaveRequests(formattedLeaves);
+    } catch (error) {
+      console.error('Error fetching leaves:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to load leave requests',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLeaves();
+  }, []);
+
+  const leaveBalances = [
+    { category: 'Annual Leave', total: 20, used: leaveRequests.filter(l => l.category === 'Annual Leave' && l.status === 'approved').reduce((sum, l) => sum + l.totalDays, 0) },
+    { category: 'Sick Leave', total: 15, used: leaveRequests.filter(l => l.category === 'Sick Leave' && l.status === 'approved').reduce((sum, l) => sum + l.totalDays, 0) },
+    { category: 'Maternity Leave', total: 180, used: leaveRequests.filter(l => l.category === 'Maternity Leave' && l.status === 'approved').reduce((sum, l) => sum + l.totalDays, 0) },
+    { category: 'Paternity Leave', total: 15, used: leaveRequests.filter(l => l.category === 'Paternity Leave' && l.status === 'approved').reduce((sum, l) => sum + l.totalDays, 0) },
+    { category: 'Emergency Leave', total: 5, used: leaveRequests.filter(l => l.category === 'Emergency Leave' && l.status === 'approved').reduce((sum, l) => sum + l.totalDays, 0) },
+  ].map(b => ({ ...b, remaining: Math.max(0, b.total - b.used) }));
 
   const upcomingLeaves = leaveRequests.filter(
     leave => leave.status === 'approved' && new Date(leave.fromDate) > new Date()
@@ -173,9 +167,7 @@ const LeaveManagement = () => {
   };
 
   const handleApplyLeave = (leaveData: any) => {
-    console.log('Applying leave:', leaveData);
-    // Here you would typically send the data to your backend
-    alert('Leave application submitted successfully!');
+    console.log('Leave requested from modal:', leaveData);
   };
 
   const handleViewLeave = (leave: LeaveRequest) => {
@@ -184,14 +176,37 @@ const LeaveManagement = () => {
   };
 
   const handleEditLeave = (leave: LeaveRequest) => {
-    console.log('Edit leave:', leave);
-    // You could open a modal to edit leave here
+    setModalMode('edit');
+    setSelectedLeave(leave);
+    setIsApplyLeaveModalOpen(true);
   };
 
-  const handleDeleteLeave = (leave: LeaveRequest) => {
+  const handleApplyNewLeave = () => {
+    setModalMode('apply');
+    setSelectedLeave(null);
+    setIsApplyLeaveModalOpen(true);
+  };
+
+  const handleDeleteLeave = async (leave: LeaveRequest) => {
     if (confirm('Are you sure you want to delete this leave request?')) {
-      console.log('Delete leave:', leave);
-      // Handle delete logic here
+      try {
+        setLoading(true);
+        await axiosInstance.delete(requests.LeaveDetail(leave.id));
+        toast({
+          title: 'Success',
+          description: 'Leave request deleted successfully',
+        });
+        fetchLeaves(); // Refresh the list
+      } catch (error: any) {
+        console.error('Error deleting leave:', error);
+        toast({
+          title: 'Error',
+          description: error.response?.data?.message || 'Failed to delete leave request',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
@@ -217,14 +232,14 @@ const LeaveManagement = () => {
           <Button
             variant="outline"
             className="gap-2"
-            onClick={() => {/* Handle export */}}
+            onClick={() => {/* Handle export */ }}
           >
             <Download className="h-4 w-4" />
             Export
           </Button>
           <Button
             className="gap-2"
-            onClick={() => setIsApplyLeaveModalOpen(true)}
+            onClick={handleApplyNewLeave}
           >
             <Plus className="h-4 w-4" />
             Apply Leave
@@ -321,80 +336,92 @@ const LeaveManagement = () => {
           <Card>
             <CardContent className="p-0">
               <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Leave Type</TableHead>
-                      <TableHead>Date Range</TableHead>
-                      <TableHead>Duration</TableHead>
-                      <TableHead>Applied On</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {leaveRequests.map((leave) => (
-                      <TableRow key={leave.id}>
-                        <TableCell>
-                          <Badge variant="outline" className={getCategoryColor(leave.category)}>
-                            {leave.category}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-sm">
-                              {formatDate(leave.fromDate)} - {formatDate(leave.toDate)}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="font-medium">{leave.totalDays} days</span>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm text-muted-foreground">
-                            {formatDate(leave.appliedDate)}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          {getStatusBadge(leave.status)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleViewLeave(leave)}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            {leave.status === 'pending' && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleEditLeave(leave)}
-                                  className="h-8 w-8 p-0"
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleDeleteLeave(leave)}
-                                  className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </TableCell>
+                {loading ? (
+                  <div className="flex items-center justify-center p-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <span className="ml-2">Loading leave requests...</span>
+                  </div>
+                ) : leaveRequests.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center p-8 text-muted-foreground">
+                    <AlertCircle className="h-12 w-12 mb-2 opacity-20" />
+                    <p>No leave requests found.</p>
+                  </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Leave Type</TableHead>
+                        <TableHead>Date Range</TableHead>
+                        <TableHead>Duration</TableHead>
+                        <TableHead>Applied On</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {leaveRequests.map((leave) => (
+                        <TableRow key={leave.id}>
+                          <TableCell>
+                            <Badge variant="outline" className={getCategoryColor(leave.category)}>
+                              {leave.category}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-3 w-3 text-muted-foreground" />
+                              <span className="text-sm">
+                                {formatDate(leave.fromDate)} - {formatDate(leave.toDate)}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-medium">{leave.totalDays} days</span>
+                          </TableCell>
+                          <TableCell>
+                            <span className="text-sm text-muted-foreground">
+                              {formatDate(leave.appliedDate)}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {getStatusBadge(leave.status)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleViewLeave(leave)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              {leave.status === 'pending' && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleEditLeave(leave)}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteLeave(leave)}
+                                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -598,8 +625,11 @@ const LeaveManagement = () => {
         open={isApplyLeaveModalOpen}
         onOpenChange={setIsApplyLeaveModalOpen}
         onApplyLeave={handleApplyLeave}
+        onSuccess={fetchLeaves}
+        mode={modalMode}
+        leaveToEdit={selectedLeave}
       />
-    </div>
+    </div >
   );
 };
 

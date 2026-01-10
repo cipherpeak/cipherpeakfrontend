@@ -11,7 +11,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import {
   Plus,
@@ -48,14 +47,15 @@ import {
 import AddTaskModal from '@/components/modals/AddTaskModal';
 import { useToast } from '@/components/ui/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { STATIC_TASKS } from '@/lib/staticTaskData';
+import axiosInstance from '@/axios/axios';
+import { requests } from '@/lib/urls';
 
 interface Task {
   id: number;
   title: string;
   description: string;
   assignee: number;
-  assignee_details: {
+  assignee_details?: {
     id: number;
     username: string;
     first_name: string;
@@ -69,9 +69,20 @@ interface Task {
     phone_number: string;
   };
   client: number;
-  client_details: {
+  client_details?: {
     id: number;
     client_name: string;
+    company?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    postal_code?: string;
+    country?: string;
+    contract_start_date?: string;
+    contract_end_date?: string;
+    is_active_client?: boolean;
   };
   status: string;
   status_display: string;
@@ -83,7 +94,7 @@ interface Task {
   scheduled_date: string | null;
   completed_at: string | null;
   created_by: number;
-  created_by_details: {
+  created_by_details?: {
     id: number;
     username: string;
     email: string;
@@ -101,7 +112,6 @@ interface Task {
   is_overdue?: boolean;
 }
 
-// Fix: Create a proper icon mapping function
 const getStatusIcon = (status: string) => {
   switch (status.toLowerCase()) {
     case 'completed':
@@ -123,37 +133,88 @@ const Tasks = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [taskToEdit, setTaskToEdit] = useState<Task | null>(null);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
-  const [tasks, setTasks] = useState<Task[]>(STATIC_TASKS);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('list');
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [taskSource, setTaskSource] = useState<'all' | 'mine' | 'created'>('all');
   const { toast } = useToast();
 
   const fetchTasks = async () => {
     setLoading(true);
-    setTimeout(() => {
+    setError(null);
+    try {
+      let endpoint = requests.TaskList;
+      if (taskSource === 'mine') endpoint = requests.MyTasks;
+      else if (taskSource === 'created') endpoint = requests.TasksCreatedByMe;
+
+      const response = await axiosInstance.get(endpoint);
+      console.log("Tasks API Response:", response.data);
+
+      const data = response.data;
+
+      if (Array.isArray(data)) {
+        setTasks(data);
+      } else if (typeof data === 'object' && data !== null) {
+        if (Array.isArray(data.results)) {
+          setTasks(data.results);
+        } else if (Array.isArray(data.data)) {
+          setTasks(data.data);
+        } else if (Array.isArray(data.tasks)) {
+          setTasks(data.tasks);
+        } else {
+          const arrayValue = Object.values(data).find(val => Array.isArray(val));
+          if (arrayValue) {
+            console.log("Found array in response property, utilizing it.");
+            setTasks(arrayValue as Task[]);
+          } else {
+            console.error('Unexpected API response structure. Keys:', Object.keys(data));
+            setTasks([]);
+          }
+        }
+      } else {
+        console.error('API response is not an array or object:', typeof data);
+        setTasks([]);
+      }
+    } catch (err: any) {
+      console.error('Error fetching tasks:', err);
+      setError('Failed to fetch tasks');
+      toast({
+        title: 'Error',
+        description: 'Failed to load tasks',
+        variant: 'destructive'
+      });
+      setTasks([]);
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
+
+  console.log(tasks, "Tasks data");
 
   useEffect(() => {
     fetchTasks();
   }, []);
 
-  // Fetch task details
   const fetchTaskDetails = async (taskId: number) => {
     setDetailLoading(true);
-    setTimeout(() => {
-      const task = tasks.find(t => t.id === taskId);
-      if (task) {
-        setSelectedTask(task);
-        setActiveTab('details');
-      }
+    try {
+      const response = await axiosInstance.get(`tasks/task_details/${taskId}/`);
+      setSelectedTask(response.data);
+      setActiveTab('details');
+    } catch (err) {
+      console.error('Error fetching task details:', err);
+      toast({
+        title: 'Error',
+        description: 'Failed to load task details',
+        variant: 'destructive'
+      });
+    } finally {
       setDetailLoading(false);
-    }, 500);
+    }
   };
 
   const handleViewDetails = (task: Task) => {
@@ -165,87 +226,126 @@ const Tasks = () => {
     setSelectedTask(null);
   };
 
-  // Function to handle edit button click
   const handleEditTask = (task: Task) => {
     setTaskToEdit(task);
     setModalMode('edit');
     setIsAddTaskModalOpen(true);
   };
 
-  // Function to handle add task button click
   const handleAddTask = () => {
     setTaskToEdit(null);
     setModalMode('add');
     setIsAddTaskModalOpen(true);
   };
 
-  // Function to handle task update
-  const handleTaskUpdated = () => {
-    fetchTasks();
-    if (selectedTask && taskToEdit && selectedTask.id === taskToEdit.id) {
-      fetchTaskDetails(selectedTask.id);
+  const handleTaskCreated = async () => {
+    try {
+      await fetchTasks();
+      setIsAddTaskModalOpen(false);
+      toast({
+        title: 'Success',
+        description: 'Task created successfully',
+      });
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: 'Failed to create task',
+        variant: 'destructive'
+      });
     }
-    setIsAddTaskModalOpen(false);
   };
 
-  // Handle task creation
-  const handleTaskCreated = () => {
-    fetchTasks();
-    setIsAddTaskModalOpen(false);
+  const handleTaskUpdated = async () => {
+    try {
+      await fetchTasks();
+      if (selectedTask && taskToEdit && selectedTask.id === taskToEdit.id) {
+        fetchTaskDetails(selectedTask.id);
+      }
+      setIsAddTaskModalOpen(false);
+      toast({
+        title: 'Success',
+        description: 'Task updated successfully',
+      });
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update task',
+        variant: 'destructive'
+      });
+    }
   };
 
-  // Update the modal close handler
   const handleModalClose = () => {
     setIsAddTaskModalOpen(false);
     setTaskToEdit(null);
   };
 
-  // Handle status update
-  const handleStatusUpdate = (taskId: number, newStatus: string) => {
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus, status_display: newStatus.replace('_', ' ') } : t));
-    toast({
-      title: 'Success',
-      description: 'Task status updated successfully',
-    });
+  const handleStatusUpdate = async (taskId: number, newStatus: string) => {
+    try {
+      await axiosInstance.post(requests.TaskStatusUpdate(taskId), { status: newStatus });
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus, status_display: newStatus.replace('_', ' ') } : t));
+
+      if (selectedTask?.id === taskId) {
+        fetchTaskDetails(taskId);
+      }
+
+      toast({
+        title: 'Success',
+        description: 'Task status updated successfully',
+      });
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: 'Failed to update task status',
+        variant: 'destructive'
+      });
+    }
   };
 
-  // Handle task deletion
-  const handleDeleteTask = (taskId: number) => {
+  const handleDeleteTask = async (taskId: number) => {
     if (!confirm('Are you sure you want to delete this task?')) {
       return;
     }
 
-    setTasks(prev => prev.filter(t => t.id !== taskId));
-    toast({
-      title: 'Success',
-      description: 'Task deleted successfully',
-    });
-    if (selectedTask?.id === taskId) {
-      handleBackToList();
+    try {
+      await axiosInstance.delete(`tasks/task/${taskId}/delete/`);
+      setTasks(prev => prev.filter(t => t.id !== taskId));
+      toast({
+        title: 'Success',
+        description: 'Task deleted successfully',
+      });
+      if (selectedTask?.id === taskId) {
+        handleBackToList();
+      }
+    } catch (err) {
+      toast({
+        title: 'Error',
+        description: 'Failed to delete task',
+        variant: 'destructive'
+      });
     }
   };
 
   useEffect(() => {
-    // Static mode - no refresh needed
-  }, [filterStatus, filterPriority]);
-
-  // Debounced search
-  useEffect(() => {
     const timeoutId = setTimeout(() => {
-      // Static mode - no refresh needed
-    }, 300);
+      fetchTasks();
+    }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm]);
+  }, [searchTerm, filterStatus, filterPriority, taskSource]);
 
-  // Filter tasks based on search term (client-side fallback)
-  const filteredTasks = tasks.filter(task =>
-    task.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    task.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    task.assignee_details?.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    task.task_type_display?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    task.client_details?.client_name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredTasks = tasks.filter(task => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      task.title?.toLowerCase().includes(searchLower) ||
+      task.description?.toLowerCase().includes(searchLower) ||
+      task.assignee_details?.full_name?.toLowerCase().includes(searchLower) ||
+      task.task_type_display?.toLowerCase().includes(searchLower) ||
+      task.client_details?.client_name?.toLowerCase().includes(searchLower)
+    ) &&
+      (filterStatus === 'all' || task.status.toLowerCase() === filterStatus) &&
+      (filterPriority === 'all' || task.priority.toLowerCase() === filterPriority);
+  });
 
   const getPriorityColor = (priority: string) => {
     switch (priority.toLowerCase()) {
@@ -267,6 +367,7 @@ const Tasks = () => {
   };
 
   const formatDate = (dateString: string) => {
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -275,6 +376,7 @@ const Tasks = () => {
   };
 
   const formatDateTime = (dateString: string) => {
+    if (!dateString) return 'N/A';
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -285,21 +387,21 @@ const Tasks = () => {
   };
 
   const isOverdue = (task: Task) => {
+    if (!task.due_date) return false;
     return new Date(task.due_date) < new Date() && task.status !== 'completed';
   };
 
-  const getTasksByStatus = (status: string) => {
-    return filteredTasks.filter(task =>
-      status === 'all' ? true : task.status.toLowerCase() === status
-    );
+  const getAssigneeInitials = (task: Task) => {
+    if (!task.assignee_details) return 'NA';
+    const firstName = task.assignee_details.first_name || '';
+    const lastName = task.assignee_details.last_name || '';
+    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || 'NA';
   };
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName?.charAt(0) || ''}${lastName?.charAt(0) || ''}`.toUpperCase();
-  };
-
-  const getFullName = (user: { first_name: string; last_name: string }) => {
-    return `${user.first_name || ''} ${user.last_name || ''}`.trim();
+  const getFullName = (user?: { first_name?: string; last_name?: string; full_name?: string }) => {
+    if (!user) return 'Unknown';
+    if (user.full_name) return user.full_name;
+    return `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown';
   };
 
   const StatCard = ({ icon: Icon, label, value, className = '' }: { icon: any, label: string, value: string, className?: string }) => (
@@ -350,13 +452,41 @@ const Tasks = () => {
             </p>
           </div>
           {activeTab === 'list' && (
-            <Button
-              className="flex items-center gap-2"
-              onClick={handleAddTask}
-            >
-              <Plus className="h-4 w-4" />
-              Create Task
-            </Button>
+            <div className="flex items-center gap-2">
+              <div className="flex bg-muted p-1 rounded-lg mr-4">
+                <Button
+                  variant={taskSource === 'all' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setTaskSource('all')}
+                  className="text-xs"
+                >
+                  All Tasks
+                </Button>
+                <Button
+                  variant={taskSource === 'mine' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setTaskSource('mine')}
+                  className="text-xs"
+                >
+                  My Tasks
+                </Button>
+                <Button
+                  variant={taskSource === 'created' ? 'default' : 'ghost'}
+                  size="sm"
+                  onClick={() => setTaskSource('created')}
+                  className="text-xs"
+                >
+                  Created
+                </Button>
+              </div>
+              <Button
+                className="flex items-center gap-2"
+                onClick={handleAddTask}
+              >
+                <Plus className="h-4 w-4" />
+                Create Task
+              </Button>
+            </div>
           )}
           {activeTab === 'details' && (
             <div className="flex items-center gap-2">
@@ -441,7 +571,7 @@ const Tasks = () => {
                           </CardTitle>
                           <CardDescription className="flex items-center gap-1 mt-1">
                             <span className="text-xs">{task.task_type_display}</span>
-                            {task.client_details && (
+                            {task.client_details?.client_name && (
                               <>
                                 <span className="text-xs">•</span>
                                 <span className="text-xs">{task.client_details.client_name}</span>
@@ -501,15 +631,15 @@ const Tasks = () => {
                       <div className="flex items-center gap-3">
                         <Avatar className="h-6 w-6">
                           <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                            {getInitials(task.assignee_details.first_name, task.assignee_details.last_name)}
+                            {getAssigneeInitials(task)}
                           </AvatarFallback>
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium truncate">
-                            {task.assignee_details.full_name}
+                            {task.assignee_details?.full_name || 'Unassigned'}
                           </p>
                           <p className="text-xs text-muted-foreground truncate">
-                            {task.assignee_details.designation}
+                            {task.assignee_details?.designation || 'No designation'}
                           </p>
                         </div>
                       </div>
@@ -762,61 +892,68 @@ const Tasks = () => {
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
-                          <Avatar className="h-16 w-16 ring-4 ring-background shadow-lg">
-                            <AvatarFallback className="text-lg bg-gradient-to-br from-primary to-primary/70 text-primary-foreground">
-                              {getInitials(selectedTask.assignee_details.first_name, selectedTask.assignee_details.last_name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
-                            <div className="space-y-4">
-                              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                <User className="h-5 w-5 text-primary" />
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Full Name</p>
-                                  <p className="font-medium">{selectedTask.assignee_details.full_name}</p>
+                        {selectedTask.assignee_details ? (
+                          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
+                            <Avatar className="h-16 w-16 ring-4 ring-background shadow-lg">
+                              <AvatarFallback className="text-lg bg-gradient-to-br from-primary to-primary/70 text-primary-foreground">
+                                {getAssigneeInitials(selectedTask)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
+                              <div className="space-y-4">
+                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                                  <User className="h-5 w-5 text-primary" />
+                                  <div>
+                                    <p className="text-sm text-muted-foreground">Full Name</p>
+                                    <p className="font-medium">{selectedTask.assignee_details.full_name}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                                  <Briefcase className="h-5 w-5 text-primary" />
+                                  <div>
+                                    <p className="text-sm text-muted-foreground">Designation</p>
+                                    <p className="font-medium">{selectedTask.assignee_details.designation}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                                  <Building className="h-5 w-5 text-primary" />
+                                  <div>
+                                    <p className="text-sm text-muted-foreground">Department</p>
+                                    <p className="font-medium">{selectedTask.assignee_details.department}</p>
+                                  </div>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                <Briefcase className="h-5 w-5 text-primary" />
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Designation</p>
-                                  <p className="font-medium">{selectedTask.assignee_details.designation}</p>
+                              <div className="space-y-4">
+                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                                  <Mail className="h-5 w-5 text-primary" />
+                                  <div>
+                                    <p className="text-sm text-muted-foreground">Email</p>
+                                    <p className="font-medium">{selectedTask.assignee_details.email}</p>
+                                  </div>
                                 </div>
-                              </div>
-                              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                <Building className="h-5 w-5 text-primary" />
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Department</p>
-                                  <p className="font-medium">{selectedTask.assignee_details.department}</p>
+                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                                  <Phone className="h-5 w-5 text-primary" />
+                                  <div>
+                                    <p className="text-sm text-muted-foreground">Phone</p>
+                                    <p className="font-medium">{selectedTask.assignee_details.phone_number || 'N/A'}</p>
+                                  </div>
                                 </div>
-                              </div>
-                            </div>
-                            <div className="space-y-4">
-                              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                <Mail className="h-5 w-5 text-primary" />
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Email</p>
-                                  <p className="font-medium">{selectedTask.assignee_details.email}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                <Phone className="h-5 w-5 text-primary" />
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Phone</p>
-                                  <p className="font-medium">{selectedTask.assignee_details.phone_number || 'N/A'}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                <IdCard className="h-5 w-5 text-primary" />
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Employee ID</p>
-                                  <p className="font-medium">{selectedTask.assignee_details.employee_id}</p>
+                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                                  <IdCard className="h-5 w-5 text-primary" />
+                                  <div>
+                                    <p className="text-sm text-muted-foreground">Employee ID</p>
+                                    <p className="font-medium">{selectedTask.assignee_details.employee_id}</p>
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           </div>
-                        </div>
+                        ) : (
+                          <div className="text-center py-8 text-muted-foreground">
+                            <User className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                            <p>No assignee information available</p>
+                          </div>
+                        )}
                       </CardContent>
                     </Card>
                   </TabsContent>
@@ -938,7 +1075,9 @@ const Tasks = () => {
                             </div>
                             <div className="flex-1">
                               <p className="font-medium">Task Created</p>
-                              <p className="text-sm text-muted-foreground">by {selectedTask.created_by_details.full_name}</p>
+                              <p className="text-sm text-muted-foreground">
+                                by {selectedTask.created_by_details ? getFullName(selectedTask.created_by_details) : 'Unknown User'}
+                              </p>
                               <p className="text-xs text-muted-foreground mt-1">{formatDateTime(selectedTask.created_at)}</p>
                             </div>
                           </div>
@@ -978,7 +1117,6 @@ const Tasks = () => {
                             <div className="flex items-start gap-4">
                               <div className="flex flex-col items-center">
                                 <div className="w-3 h-3 bg-green-500 rounded-full mt-1.5"></div>
-                                <div className="w-0.5 h-16 bg-green-200 mt-2"></div>
                               </div>
                               <div className="flex-1">
                                 <p className="font-medium">Task Completed</p>
@@ -1033,4 +1171,3 @@ const Tasks = () => {
 };
 
 export default Tasks;
-

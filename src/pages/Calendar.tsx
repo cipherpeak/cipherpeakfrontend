@@ -15,6 +15,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   ChevronLeft,
@@ -38,10 +39,13 @@ import {
   CheckCircle,
   PlayCircle,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Edit
 } from 'lucide-react';
+import { requests } from '@/lib/urls';
+import axiosInstance from '@/axios/axios';
+import { useToast } from '@/components/ui/use-toast';
 import AddEventModal from '@/components/modals/AddEventModal';
-import { STATIC_CALENDAR_EVENTS } from '@/lib/staticCalendarData';
 
 interface CalendarEvent {
   id: number;
@@ -84,24 +88,53 @@ const Calendar = () => {
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
+  const [eventToEdit, setEventToEdit] = useState<any>(null);
 
   useEffect(() => {
-    // Load static events
-    const formattedEvents: CalendarEvent[] = STATIC_CALENDAR_EVENTS.map((event: any) => ({
-      ...event,
-      time: event.time || "09:00 AM",
-      duration: event.duration || "1h",
-      attendees: event.attendees || [],
-      color: event.color || (event.type === 'payment' ? 'bg-emerald-500' : 'bg-blue-500'),
-    }));
-    setCalendarEvents(formattedEvents);
-  }, []);
+    fetchData();
+  }, [currentDate]);
 
-  const fetchData = () => {
+  const { toast } = useToast();
+
+  const fetchData = async () => {
     setLoading(true);
-    setTimeout(() => {
+    setError(null);
+    try {
+      const response = await axiosInstance.get(requests.EventList);
+      const data = response.data;
+
+      const events = Array.isArray(data) ? data : (data.results || data.events || []);
+
+      const formattedEvents: CalendarEvent[] = events.map((event: any) => ({
+        ...event,
+        id: event.id,
+        title: event.name || event.title,
+        description: event.description,
+        date: event.event_date || event.date,
+        time: event.start_time || event.time || "09:00 AM",
+        duration: event.duration_minutes ? `${event.duration_minutes}m` : (event.duration || "1h"),
+        type: event.event_type || event.type || 'event',
+        attendees: event.assigned_employee_details ? [{
+          name: `${event.assigned_employee_details.first_name} ${event.assigned_employee_details.last_name}`,
+          initials: `${event.assigned_employee_details.first_name?.[0] || ''}${event.assigned_employee_details.last_name?.[0] || ''}`
+        }] : (event.attendees || []),
+        color: event.color || (event.event_type === 'meeting' ? 'bg-blue-500' : 'bg-emerald-500'),
+        status: event.status
+      }));
+
+      setCalendarEvents(formattedEvents);
+    } catch (err: any) {
+      console.error('Error fetching events:', err);
+      setError('Failed to fetch events');
+      toast({
+        title: 'Error',
+        description: 'Failed to load calendar events',
+        variant: 'destructive'
+      });
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
   const monthNames = [
@@ -156,6 +189,26 @@ const Calendar = () => {
     setIsDateModalOpen(true);
   };
 
+  const handleAddNewEventFromDate = () => {
+    setModalMode('add');
+    setEventToEdit(null);
+    setIsDateModalOpen(false);
+    setIsAddEventModalOpen(true);
+  };
+
+  const handleEditEvent = (event: any) => {
+    setModalMode('edit');
+    setEventToEdit(event);
+    setIsDateModalOpen(false);
+    setIsAddEventModalOpen(true);
+  };
+
+  const handleNewEventClick = () => {
+    setModalMode('add');
+    setEventToEdit(null);
+    setIsAddEventModalOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -165,7 +218,7 @@ const Calendar = () => {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={fetchData}><RefreshCw className="h-4 w-4 mr-2" />Refresh</Button>
-          <Button onClick={() => setIsAddEventModalOpen(true)}><Plus className="h-4 w-4 mr-2" />New Event</Button>
+          <Button onClick={handleNewEventClick}><Plus className="h-4 w-4 mr-2" />New Event</Button>
         </div>
       </div>
 
@@ -210,7 +263,15 @@ const Calendar = () => {
         </CardContent>
       </Card>
 
-      <AddEventModal open={isAddEventModalOpen} onOpenChange={setIsAddEventModalOpen} mode="add" />
+      <AddEventModal
+        open={isAddEventModalOpen}
+        onOpenChange={setIsAddEventModalOpen}
+        mode={modalMode}
+        onEventCreated={fetchData}
+        onEventUpdated={fetchData}
+        eventToEdit={eventToEdit}
+        defaultDate={selectedDate || undefined}
+      />
 
       <Dialog open={isDateModalOpen} onOpenChange={setIsDateModalOpen}>
         <DialogContent className="sm:max-w-md">
@@ -220,21 +281,38 @@ const Calendar = () => {
           <div className="space-y-4">
             {selectedDateEvents.length > 0 ? (
               selectedDateEvents.map(event => (
-                <div key={event.id} className="flex items-start gap-3 p-3 border rounded-lg">
-                  <div className={`p-2 rounded-full ${event.color} text-white`}>
-                    {event.type === 'payment' ? <DollarSign className="h-4 w-4" /> : <CalendarIcon className="h-4 w-4" />}
+                <div key={event.id} className="flex items-start justify-between p-3 border rounded-lg hover:bg-muted/30 transition-colors group">
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-full ${event.color} text-white`}>
+                      {event.type === 'payment' ? <DollarSign className="h-4 w-4" /> : <CalendarIcon className="h-4 w-4" />}
+                    </div>
+                    <div>
+                      <p className="font-medium">{event.title}</p>
+                      <p className="text-sm text-muted-foreground">{event.description}</p>
+                      <p className="text-xs text-muted-foreground mt-1 text-primary">{event.time} • {event.duration}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium">{event.title}</p>
-                    <p className="text-sm text-muted-foreground">{event.description}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{event.time} • {event.duration}</p>
-                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8"
+                    onClick={() => handleEditEvent(event)}
+                  >
+                    <Edit className="h-4 w-4" />
+                    <span className="sr-only">Edit</span>
+                  </Button>
                 </div>
               ))
             ) : (
               <p className="text-center text-muted-foreground py-8">No events for this date</p>
             )}
           </div>
+          <DialogFooter className="mt-4">
+            <Button className="w-full" onClick={handleAddNewEventFromDate}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Event for this Day
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

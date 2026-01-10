@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { requests } from '@/lib/urls';
+import axiosInstance from '@/axios/axios';
 import {
   Dialog,
   DialogContent,
@@ -30,7 +32,7 @@ import { cn } from '@/lib/utils';
 
 
 import { useToast } from '@/components/ui/use-toast';
-// Reverting to static mode
+// Backend API mode
 
 interface Employee {
   id: number;
@@ -48,6 +50,7 @@ interface AddEventModalProps {
   onEventUpdated?: () => void;
   eventToEdit?: any;
   mode?: 'add' | 'edit';
+  defaultDate?: Date;
 }
 
 const AddEventModal = ({
@@ -56,7 +59,8 @@ const AddEventModal = ({
   onEventCreated,
   onEventUpdated,
   eventToEdit,
-  mode = 'add'
+  mode = 'add',
+  defaultDate
 }: AddEventModalProps) => {
   const [formData, setFormData] = useState({
     name: '',
@@ -134,13 +138,29 @@ const AddEventModal = ({
   // Fetch employees for assigned employee dropdown
   const fetchEmployees = async () => {
     setEmployeesLoading(true);
-    setTimeout(() => {
-      setEmployees([
-        { id: 1, first_name: 'Admin', last_name: 'User', email: 'admin@cipherpeak.com', designation: 'CEO', department: 'Management' },
-        { id: 2, first_name: 'Jane', last_name: 'Smith', email: 'jane@cipherpeak.com', designation: 'Designer', department: 'Design' },
-      ]);
+    try {
+      const response = await axiosInstance.get(requests.EmployeeList);
+      const data = response.data;
+      console.log("Employees API Response:", data);
+      let employeeList: Employee[] = [];
+
+      if (Array.isArray(data)) {
+        employeeList = data;
+      } else if (data.results && Array.isArray(data.results)) {
+        employeeList = data.results;
+      } else if (data.data && Array.isArray(data.data)) {
+        employeeList = data.data;
+      } else if (data.employees && Array.isArray(data.employees)) {
+        employeeList = data.employees;
+      }
+
+      setEmployees(employeeList);
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+      toast({ title: "Error", description: "Failed to load employees", variant: "destructive" });
+    } finally {
       setEmployeesLoading(false);
-    }, 500);
+    }
   };
 
   // Initialize form when modal opens or eventToEdit changes
@@ -151,7 +171,7 @@ const AddEventModal = ({
       if (mode === 'edit' && eventToEdit) {
         // Pre-fill form with event data for editing
         setFormData({
-          name: eventToEdit.name || '',
+          name: eventToEdit.name || eventToEdit.title || '',
           description: eventToEdit.description || '',
           event_type: eventToEdit.event_type || 'meeting',
           assigned_employee: eventToEdit.assigned_employee?.toString() || eventToEdit.assigned_employee_details?.id?.toString() || '',
@@ -160,6 +180,10 @@ const AddEventModal = ({
           duration_minutes: eventToEdit.duration_minutes?.toString() || '',
           is_recurring: eventToEdit.is_recurring ? 'true' : 'false',
           recurrence_pattern: eventToEdit.recurrence_pattern || '',
+        });
+        console.log("Edit mode: Form data initialized with:", {
+          name: eventToEdit.name || eventToEdit.title,
+          employee: eventToEdit.assigned_employee || eventToEdit.assigned_employee_details?.id
         });
 
         if (eventToEdit.event_date) {
@@ -170,11 +194,14 @@ const AddEventModal = ({
       } else {
         // Reset form for new event
         resetForm();
+        if (defaultDate) {
+          setEventDate(defaultDate);
+        }
       }
     }
-  }, [open, mode, eventToEdit]);
+  }, [open, mode, eventToEdit, defaultDate]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.assigned_employee) {
@@ -205,20 +232,61 @@ const AddEventModal = ({
     }
 
     setLoading(true);
-    setTimeout(() => {
-      toast({
-        title: 'Success',
-        description: `Event ${mode === 'edit' ? 'updated' : 'created'} successfully (Simulation)`,
-      });
-      if (mode === 'edit') {
-        if (onEventUpdated) onEventUpdated();
-      } else {
+    try {
+      // Format the date and time for the backend
+      // Backend expects 'event_date' (date) and 'start_time' (time) or combined
+      // Looking at the provided URLs, it seems to handle them.
+
+      const payload = {
+        name: formData.name,
+        description: formData.description,
+        event_type: formData.event_type,
+        assigned_employee: parseInt(formData.assigned_employee),
+        location: formData.location,
+        status: formData.status,
+        duration_minutes: parseInt(formData.duration_minutes) || 60,
+        event_date: format(eventDate, 'yyyy-MM-dd'),
+        start_time: startTime,
+      };
+
+      console.log("Saving event with payload:", payload);
+
+      if (mode === 'add') {
+        await axiosInstance.post(requests.EventCreate, payload);
+        toast({ title: 'Success', description: 'Event created successfully' });
         if (onEventCreated) onEventCreated();
+      } else {
+        await axiosInstance.put(requests.EventUpdate(eventToEdit.id), payload);
+        toast({ title: 'Success', description: 'Event updated successfully' });
+        if (onEventUpdated) onEventUpdated();
       }
-      setLoading(false);
+
       resetForm();
       onOpenChange(false);
-    }, 1000);
+    } catch (error: any) {
+      console.error("Error saving event:", error);
+      const errorData = error.response?.data;
+      let errorMessage = 'Failed to save event';
+
+      if (errorData) {
+        if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        } else if (typeof errorData === 'object') {
+          // Extract errors from Django REST Framework format
+          errorMessage = Object.entries(errorData)
+            .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(', ') : errors}`)
+            .join(' | ');
+        }
+      }
+
+      toast({
+        title: 'Error',
+        description: errorMessage || error.message || 'Failed to save event',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetForm = () => {
@@ -502,8 +570,14 @@ const AddEventModal = ({
               className="w-full sm:w-auto"
               disabled={loading || !formData.name || !formData.assigned_employee || !eventDate || !startTime}
             >
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {mode === 'edit' ? 'Update Event' : 'Create Event'}
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                mode === 'edit' ? 'Update Event' : 'Create Event'
+              )}
             </Button>
           </DialogFooter>
         </form>
