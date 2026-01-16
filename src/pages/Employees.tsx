@@ -25,13 +25,17 @@ import {
   Award,
   Briefcase,
   Contact,
-  FileText as FileTextIcon
+  FileText as FileTextIcon,
+  Trash2,
 } from 'lucide-react';
 
 import AddEmployeeModal from '@/components/modals/AddEmployeeModal';
 import { EmployeeProfileCard } from '@/components/pagesComponent/EmployeesCom/EmployeeProfileCard';
+import SalaryPaymentList from '@/components/pagesComponent/EmployeesCom/SalaryPaymentList';
 import axiosInstance from '@/axios/axios';
 import { toast } from 'sonner';
+import { requests } from '@/lib/urls';
+import { backendUrl } from '@/components/Constants/Constants';
 
 interface Employee {
   id: number;
@@ -114,6 +118,24 @@ const Employees = () => {
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('list');
+
+  // Document/Media Upload State
+  const [isDocUploadModalOpen, setIsDocUploadModalOpen] = useState(false);
+  const [isMediaUploadModalOpen, setIsMediaUploadModalOpen] = useState(false);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [docUploadForm, setDocUploadForm] = useState({
+    document_type: '',
+    title: '',
+    description: '',
+    file: null as File | null,
+  });
+  const [mediaUploadForm, setMediaUploadForm] = useState({
+    media_type: '',
+    title: '',
+    description: '',
+    file: null as File | null,
+  });
 
   const fetchEmployees = async () => {
     setLoading(true);
@@ -252,7 +274,7 @@ const Employees = () => {
       toast.success('Employee deleted successfully');
       fetchEmployees();
       if (selectedEmployee?.id === employeeId) {
-        handleBackToList(); 
+        handleBackToList();
       }
     } catch (err: any) {
       console.error('Error deleting employee:', err);
@@ -274,6 +296,87 @@ const Employees = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+
+  const handleUploadDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEmployee || !docUploadForm.file) return;
+
+    setUploadLoading(true);
+    setUploadError(null);
+
+    const formData = new FormData();
+    formData.append('document_type', docUploadForm.document_type);
+    formData.append('title', docUploadForm.title);
+    formData.append('description', docUploadForm.description);
+    formData.append('file', docUploadForm.file);
+
+    try {
+      await axiosInstance.post(requests.EmployeeDocumentUpload(selectedEmployee.id), formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      toast.success('Document uploaded successfully');
+      setIsDocUploadModalOpen(false);
+      setDocUploadForm({ document_type: '', title: '', description: '', file: null });
+      fetchEmployeeDetails(selectedEmployee.id);
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      setUploadError(err.response?.data?.error || 'Failed to upload document');
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  const handleUploadMedia = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedEmployee || !mediaUploadForm.file) return;
+
+    setUploadLoading(true);
+    setUploadError(null);
+
+    const formData = new FormData();
+    formData.append('media_type', mediaUploadForm.media_type);
+    formData.append('title', mediaUploadForm.title);
+    formData.append('description', mediaUploadForm.description);
+    formData.append('file', mediaUploadForm.file);
+
+    try {
+      await axiosInstance.post(requests.EmployeeMediaUpload(selectedEmployee.id), formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      toast.success('Media uploaded successfully');
+      setIsMediaUploadModalOpen(false);
+      setMediaUploadForm({ media_type: '', title: '', description: '', file: null });
+      fetchEmployeeDetails(selectedEmployee.id);
+    } catch (err: any) {
+      console.error('Upload error:', err);
+      setUploadError(err.response?.data?.error || 'Failed to upload media');
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  const handleDeleteDocument = async (docId: number) => {
+    if (!confirm('Are you sure you want to delete this document?')) return;
+    try {
+      await axiosInstance.delete(requests.EmployeeDocumentDelete(docId));
+      toast.success('Document deleted successfully');
+      if (selectedEmployee) fetchEmployeeDetails(selectedEmployee.id);
+    } catch (err: any) {
+      toast.error('Failed to delete document');
+    }
+  };
+
+  const handleDeleteMedia = async (mediaId: number) => {
+    if (!confirm('Are you sure you want to delete this media file?')) return;
+    try {
+      await axiosInstance.delete(requests.EmployeeMediaDelete(mediaId));
+      toast.success('Media deleted successfully');
+      if (selectedEmployee) fetchEmployeeDetails(selectedEmployee.id);
+    } catch (err: any) {
+      toast.error('Failed to delete media');
+    }
   };
 
   const StatCard = ({ icon: Icon, label, value, className = '' }: { icon: any, label: string, value: string, className?: string }) => (
@@ -492,7 +595,7 @@ const Employees = () => {
 
                 {/* Rest of the detail view tabs */}
                 <Tabs defaultValue="personal" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto p-1 bg-muted/50">
+                  <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 h-auto p-1 bg-muted/50">
                     <TabsTrigger value="personal" className="flex items-center gap-2 py-3">
                       <User className="h-4 w-4" />
                       <span className="hidden sm:inline">Personal</span>
@@ -508,6 +611,10 @@ const Employees = () => {
                     <TabsTrigger value="media" className="flex items-center gap-2 py-3">
                       <Image className="h-4 w-4" />
                       <span className="hidden sm:inline">Media</span>
+                    </TabsTrigger>
+                    <TabsTrigger value="payments" className="flex items-center gap-2 py-3">
+                      <IndianRupee className="h-4 w-4" />
+                      <span className="hidden sm:inline">Payments</span>
                     </TabsTrigger>
                   </TabsList>
 
@@ -646,11 +753,15 @@ const Employees = () => {
                   {/* Documents Tab */}
                   <TabsContent value="documents" className="space-y-6 mt-6">
                     <Card>
-                      <CardHeader>
+                      <CardHeader className="flex flex-row items-center justify-between">
                         <CardTitle className="flex items-center gap-2">
                           <FileText className="h-5 w-5" />
                           Documents ({selectedEmployee.documents?.length || 0})
                         </CardTitle>
+                        <Button size="sm" onClick={() => setIsDocUploadModalOpen(true)}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Document
+                        </Button>
                       </CardHeader>
                       <CardContent>
                         {selectedEmployee.documents && selectedEmployee.documents.length > 0 ? (
@@ -680,15 +791,26 @@ const Employees = () => {
                                         Verified
                                       </Badge>
                                     )}
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleDownloadFile(doc.file_url, doc.title)}
-                                      className="flex items-center gap-2"
-                                    >
-                                      <Download className="h-4 w-4" />
-                                      Download
-                                    </Button>
+                                    <div className="flex gap-2 ml-auto">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDownloadFile(doc.file_url, doc.title)}
+                                        className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                        title="Download"
+                                      >
+                                        <Download className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => handleDeleteDocument(doc.id)}
+                                        className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        title="Delete"
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
                                   </div>
                                 </CardContent>
                               </Card>
@@ -707,11 +829,15 @@ const Employees = () => {
                   {/* Media Tab */}
                   <TabsContent value="media" className="space-y-6 mt-6">
                     <Card>
-                      <CardHeader>
+                      <CardHeader className="flex flex-row items-center justify-between">
                         <CardTitle className="flex items-center gap-2">
                           <Image className="h-5 w-5" />
                           Media Files ({selectedEmployee.media_files?.length || 0})
                         </CardTitle>
+                        <Button size="sm" onClick={() => setIsMediaUploadModalOpen(true)}>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Media
+                        </Button>
                       </CardHeader>
                       <CardContent>
                         {selectedEmployee.media_files && selectedEmployee.media_files.length > 0 ? (
@@ -740,15 +866,26 @@ const Employees = () => {
                                       {media.description}
                                     </p>
                                   )}
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="w-full mt-3"
-                                    onClick={() => handleDownloadFile(media.file_url, media.title)}
-                                  >
-                                    <Download className="h-3 w-3 mr-2" />
-                                    Download
-                                  </Button>
+                                  <div className="flex gap-2 mt-3 justify-end">
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleDownloadFile(media.file_url, media.title)}
+                                      className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                      title="Download"
+                                    >
+                                      <Download className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      onClick={() => handleDeleteMedia(media.id)}
+                                      className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      title="Delete"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </div>
                                 </CardContent>
                               </Card>
                             ))}
@@ -761,6 +898,16 @@ const Employees = () => {
                         )}
                       </CardContent>
                     </Card>
+                  </TabsContent>
+
+                  {/* Payments Tab */}
+                  <TabsContent value="payments" className="space-y-6 mt-6">
+                    <SalaryPaymentList
+                      employeeId={selectedEmployee.id}
+                      employeeName={getFullName(selectedEmployee)}
+                      salary={selectedEmployee.salary || ''}
+                      onUpdate={() => fetchEmployeeDetails(selectedEmployee.id)}
+                    />
                   </TabsContent>
                 </Tabs>
               </div>
@@ -780,6 +927,107 @@ const Employees = () => {
       </div>
 
       {/* Add/Edit Employee Modal */}
+      {/* Document Upload Modal */}
+      {isDocUploadModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold mb-4">Upload Document</h3>
+            <form onSubmit={handleUploadDocument} className="space-y-4">
+              {uploadError && <div className="text-red-500 text-sm">{uploadError}</div>}
+              <Input
+                placeholder="Title"
+                value={docUploadForm.title}
+                onChange={e => setDocUploadForm({ ...docUploadForm, title: e.target.value })}
+                required
+              />
+              <select
+                className="w-full p-2 border rounded-md dark:bg-gray-800"
+                value={docUploadForm.document_type}
+                onChange={e => setDocUploadForm({ ...docUploadForm, document_type: e.target.value })}
+                required
+              >
+                <option value="">Select Type</option>
+                <option value="resume">Resume/CV</option>
+                <option value="offer_letter">Offer Letter</option>
+                <option value="joining_letter">Joining Letter</option>
+                <option value="contract">Employment Contract</option>
+                <option value="id_proof">ID Proof</option>
+                <option value="address_proof">Address Proof</option>
+                <option value="educational_certificate">Educational Certificate</option>
+                <option value="experience_letter">Experience Letter</option>
+                <option value="salary_slip">Salary Slip</option>
+                <option value="appraisal">Appraisal Document</option>
+                <option value="warning">Warning Letter</option>
+                <option value="termination">Termination Letter</option>
+                <option value="other">Other</option>
+              </select>
+              <Input
+                placeholder="Description"
+                value={docUploadForm.description}
+                onChange={e => setDocUploadForm({ ...docUploadForm, description: e.target.value })}
+              />
+              <Input
+                type="file"
+                onChange={e => setDocUploadForm({ ...docUploadForm, file: e.target.files?.[0] || null })}
+                required
+              />
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsDocUploadModalOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={uploadLoading}>{uploadLoading ? 'Uploading...' : 'Upload'}</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Media Upload Modal */}
+      {isMediaUploadModalOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-lg w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold mb-4">Upload Media</h3>
+            <form onSubmit={handleUploadMedia} className="space-y-4">
+              {uploadError && <div className="text-red-500 text-sm">{uploadError}</div>}
+              <Input
+                placeholder="Title"
+                value={mediaUploadForm.title}
+                onChange={e => setMediaUploadForm({ ...mediaUploadForm, title: e.target.value })}
+                required
+              />
+              <select
+                className="w-full p-2 border rounded-md dark:bg-gray-800"
+                value={mediaUploadForm.media_type}
+                onChange={e => setMediaUploadForm({ ...mediaUploadForm, media_type: e.target.value })}
+                required
+              >
+                <option value="">Select Type</option>
+                <option value="profile_picture">Profile Picture</option>
+                <option value="id_photo">ID Photo</option>
+                <option value="id_card_photo">ID Card Photo</option>
+                <option value="signature">Signature</option>
+                <option value="work_sample">Work Sample</option>
+                <option value="training_certificate">Training Certificate</option>
+                <option value="award_certificate">Award Certificate</option>
+                <option value="other">Other</option>
+              </select>
+              <Input
+                placeholder="Description"
+                value={mediaUploadForm.description}
+                onChange={e => setMediaUploadForm({ ...mediaUploadForm, description: e.target.value })}
+              />
+              <Input
+                type="file"
+                onChange={e => setMediaUploadForm({ ...mediaUploadForm, file: e.target.files?.[0] || null })}
+                required
+              />
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setIsMediaUploadModalOpen(false)}>Cancel</Button>
+                <Button type="submit" disabled={uploadLoading}>{uploadLoading ? 'Uploading...' : 'Upload'}</Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <AddEmployeeModal
         open={isAddEmployeeModalOpen}
         onOpenChange={handleModalClose}

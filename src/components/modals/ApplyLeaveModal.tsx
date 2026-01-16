@@ -48,18 +48,17 @@ export interface LeaveFormData {
   toDate: Date | undefined;
   totalDays: number;
   reason: string;
+  address_during_leave: string;
   attachment: File | null;
 }
 
 const leaveCategories = [
-  { value: 'annual', label: 'Annual Leave' },
-  { value: 'sick', label: 'Sick Leave' },
-  { value: 'maternity', label: 'Maternity Leave' },
-  { value: 'paternity', label: 'Paternity Leave' },
-  { value: 'unpaid', label: 'Unpaid Leave' },
-  { value: 'emergency', label: 'Emergency Leave' },
-  { value: 'bereavement', label: 'Bereavement Leave' },
-  { value: 'study', label: 'Study Leave' },
+  { value: 'Annual Leave', label: 'Annual Leave' },
+  { value: 'Casual Leave', label: 'Casual Leave' },
+  { value: 'Sick Leave', label: 'Sick Leave' },
+  { value: 'Bereavement Leave', label: 'Bereavement Leave' },
+  { value: 'LOP', label: 'Leave Without Pay (LOP)' },
+  { value: 'WFH', label: 'Work From Home (WFH)' },
 ];
 
 const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = 'apply', leaveToEdit }: ApplyLeaveModalProps) => {
@@ -71,6 +70,7 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
     toDate: undefined,
     totalDays: 0,
     reason: '',
+    address_during_leave: '',
     attachment: null,
   });
 
@@ -84,6 +84,7 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
         toDate: leaveToEdit.toDate ? new Date(leaveToEdit.toDate) : undefined,
         totalDays: parseFloat(leaveToEdit.totalDays) || 0,
         reason: leaveToEdit.reason || '',
+        address_during_leave: leaveToEdit.address_during_leave || '',
         attachment: null, // We typically don't set file input values from URL
       });
     } else if (mode === 'apply' && open) {
@@ -93,6 +94,7 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
         toDate: undefined,
         totalDays: 0,
         reason: '',
+        address_during_leave: '',
         attachment: null,
       });
     }
@@ -141,6 +143,7 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
       if (formData.toDate) data.append('end_date', format(formData.toDate, 'yyyy-MM-dd'));
       data.append('total_days', formData.totalDays.toString());
       data.append('reason', formData.reason);
+      data.append('address_during_leave', formData.address_during_leave);
       if (formData.attachment) {
         data.append('attachment', formData.attachment);
       }
@@ -176,6 +179,7 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
         toDate: undefined,
         totalDays: 0,
         reason: '',
+        address_during_leave: '',
         attachment: null,
       });
       onOpenChange(false);
@@ -324,6 +328,19 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
                 onChange={(e) => setFormData(prev => ({ ...prev, reason: e.target.value }))}
                 className="min-h-[100px]"
                 required
+              />
+            </div>
+
+            {/* Address During Leave */}
+            <div className="grid gap-2">
+              <Label htmlFor="address_during_leave" className="text-sm font-medium">
+                Address During Leave
+              </Label>
+              <Input
+                id="address_during_leave"
+                placeholder="Where can we contact you if needed?"
+                value={formData.address_during_leave}
+                onChange={(e) => setFormData(prev => ({ ...prev, address_during_leave: e.target.value }))}
               />
             </div>
 

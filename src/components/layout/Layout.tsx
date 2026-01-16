@@ -6,32 +6,13 @@ import { useNavigate } from 'react-router-dom';
 
 const Layout = () => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isDark, setIsDark] = useState(false);
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
 
   useEffect(() => {
-    // Check for saved theme preference
-    const saved = localStorage.getItem('theme');
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    
-    if (saved === 'dark' || (!saved && prefersDark)) {
-      setIsDark(true);
-      document.documentElement.classList.add('dark');
-    }
+    // Always ensure light mode when dark mode option is removed
+    document.documentElement.classList.remove('dark');
+    localStorage.setItem('theme', 'light');
   }, []);
-
-  const toggleTheme = () => {
-    const newTheme = !isDark;
-    setIsDark(newTheme);
-    
-    if (newTheme) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  };
 
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
@@ -41,7 +22,7 @@ const Layout = () => {
   };
   return (
     <div className="min-h-screen bg-background">
-      <Navbar onThemeToggle={toggleTheme} isDark={isDark} onNavigateToLeaveManagement={handleNavigateToLeaveManagement} />
+      <Navbar onNavigateToLeaveManagement={handleNavigateToLeaveManagement} />
       <div className="flex h-[calc(100vh-4rem)]">
         <Sidebar isCollapsed={isCollapsed} onToggle={toggleSidebar} />
         <main className="flex-1 overflow-auto p-6">

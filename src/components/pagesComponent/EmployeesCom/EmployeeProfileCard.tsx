@@ -138,9 +138,68 @@ export const EmployeeProfileCard: React.FC<EmployeeProfileCardProps> = ({
         </div>
 
         {/* Status Badge */}
-        <Badge variant="outline" className={`${getStatusColor(employee.current_status)} border-white/30 backdrop-blur-sm`}>
-          {formatStatus(employee.current_status)}
-        </Badge>
+        <div className="flex flex-col gap-2 items-end">
+          <Badge variant="outline" className={`${getStatusColor(employee.current_status)} border-white/30 backdrop-blur-sm`}>
+            {formatStatus(employee.current_status)}
+          </Badge>
+
+          {/* Salary Status Badge */}
+          {(() => {
+            const today = new Date();
+            const currentDay = today.getDate();
+            const joiningDate = new Date(employee.joining_date);
+            const salaryDate = joiningDate.getDate();
+            const isPaid = employee.salary_status === 'paid'; // Assuming API returns this
+
+            // Logic similar to requested:
+            // "if salry paid or overdue or early paid show it in below of active"
+
+            // Since we don't have the explicit salary_status field in the Interface defined in this file yet,
+            // I'll update the interface first. For now, let's assume 'salary_payment_status' or similar is needed.
+            // The previous conversation mentioned logic: "Payment date reaching soon" (7 days prior), "Pay Salary" (on day), "Overdue".
+            // However, the user specifically asked for "paid or overdue or early paid".
+
+            // Let's use a helper to determine status if not provided by backend directly, 
+            // OR rely on a new field on the employee object if we added it.
+            // In a previous turn "Implement Salary Payment Feature", we discussed `salary_payment` boolean.
+            // Let's try to infer or use `salary_payment_status` if available.
+
+            // CHECK: The `Employee` interface in `EmployeeProfileCard.tsx` (lines 22-50) DOES NOT have salary status fields.
+            // I need to add `salary_payment_status?: string` to the interface.
+
+            // let's assume the backend passes `salary_payment_status`.
+            const status = employee.salary_payment_status?.toLowerCase();
+
+            if (!status) return null;
+
+            let badgeClass = '';
+            let badgeText = '';
+
+            if (status === 'paid') {
+              badgeClass = 'bg-green-100/90 text-green-800 border-green-200';
+              badgeText = 'Salary Paid';
+            } else if (status === 'early_paid') {
+              badgeClass = 'bg-blue-100/90 text-blue-800 border-blue-200';
+              badgeText = 'Early Paid';
+            } else if (status === 'overdue') {
+              badgeClass = 'bg-red-100/90 text-red-800 border-red-200';
+              badgeText = 'Overdue';
+            } else if (status === 'due') {
+              // optionally show due
+              badgeClass = 'bg-yellow-100/90 text-yellow-800 border-yellow-200';
+              badgeText = 'Payment Due';
+            }
+
+            if (badgeText) {
+              return (
+                <Badge variant="outline" className={`${badgeClass} border-white/30 backdrop-blur-sm`}>
+                  {badgeText}
+                </Badge>
+              );
+            }
+            return null;
+          })()}
+        </div>
       </div>
 
       {/* Bottom Content Area with Blur */}

@@ -6,10 +6,13 @@ export const requests = {
     ClientUpdate: (id: number) => `client/clients/${id}/update/`,
     ClientDelete: (id: number) => `client/clients/delete/${id}/`,
     ClientUploadDocument: (id: number) => `client/clients/${id}/upload-document/`,
+    ClientDocumentDelete: (id: number) => `client/client-documents/${id}/delete/`,
+    ClientDocumentDownload: (id: number) => `client/client-documents/${id}/download/`,
     ClientAdminNotes: (id: number) => `client/clients/${id}/admin-note/`,
     ClientAdminNoteCreate: (id: number) => `client/clients/${id}/admin-note/create/`,
-    ClientPaymentList: 'client/clients/process-salary-payment/',
-    ClientPaymentProcess: (id: number) => `client/clients/process-salary-payment/${id}/`,
+    ClientPaymentList: (id: number) => `client/clients/${id}/payment-history/`,
+    ProcessClientPayment: (id: number) => `client/clients/${id}/process-payment/`,
+    ClientPaymentDetail: (id: number) => `client/clients/${id}/payment-detail/`,
 
     // Task API
     TaskCreate: 'tasks/create/',
@@ -24,6 +27,10 @@ export const requests = {
 
     // Auth/Employee API
     EmployeeList: 'auth/employees/',
+    EmployeeDocumentUpload: (id: number) => `auth/employees/upload_document/${id}/`,
+    EmployeeMediaUpload: (id: number) => `auth/employees/upload_media/${id}/`,
+    EmployeeDocumentDelete: (id: number) => `auth/employees/document/${id}/delete/`,
+    EmployeeMediaDelete: (id: number) => `auth/employees/media/${id}/delete/`,
 
 
     // Calendar/Events API
@@ -43,4 +50,10 @@ export const requests = {
     LeaveList: 'auth/leaves/',
     LeaveCreate: 'auth/leaves/create/',
     LeaveDetail: (id: number | string) => `auth/leaves/${id}/`,
+    LeaveProcess: (id: number | string) => `auth/leaves/${id}/process/`,
+
+    // Salary Payment API
+    SalaryPaymentList: 'auth/salary-payment-history/',
+    ProcessSalaryPayment: (id: number) => `auth/process-salary-payment/${id}/`,
+    PaymentDetail: (id: number) => `auth/payments/${id}/`,
 };

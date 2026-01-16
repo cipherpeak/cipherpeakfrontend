@@ -14,12 +14,10 @@ import { Moon, Sun, User, Settings, LogOut, Bell, Calendar } from 'lucide-react'
 import logo from "../../assets/cipher_peak full.png"
 
 interface NavbarProps {
-  onThemeToggle: () => void;
-  isDark: boolean;
   onNavigateToLeaveManagement?: () => void; // Add this prop
 }
 
-const Navbar = ({ onThemeToggle, isDark, onNavigateToLeaveManagement }: NavbarProps) => {
+const Navbar = ({ onNavigateToLeaveManagement }: NavbarProps) => {
   const [notifications] = useState(3);
 
   return (
@@ -33,15 +31,7 @@ const Navbar = ({ onThemeToggle, isDark, onNavigateToLeaveManagement }: NavbarPr
       </div>
 
       <div className="flex items-center space-x-4">
-        {/* Theme Toggle */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onThemeToggle}
-          className="text-muted-foreground hover:text-foreground"
-        >
-          {isDark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-        </Button>
+
 
         {/* Notifications */}
         <Button variant="ghost" size="sm" className="relative text-muted-foreground hover:text-foreground">

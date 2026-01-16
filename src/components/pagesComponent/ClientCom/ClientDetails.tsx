@@ -24,33 +24,35 @@ import {
   Plus,
   X,
   RefreshCw,
+  Trash2,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 
 
+// ... existing imports ...
+import ClientPaymentList from './ClientPaymentList';
+
+// ... existing interfaces ...
+
+// Removed AdminNote interface
 
 interface ClientDocument {
   id: number;
-  client: number;
-  document_type: string;
   title: string;
-  description: string;
   file: string;
-  file_url: string;
-  uploaded_at: string;
-  uploaded_by: number;
-}
-
-interface AdminNote {
-  id: number;
-  note: string;
-  created_at: string;
-  created_by_name?: string;
+  description?: string;
+  document_type?: string;
+  uploaded_by?: number | string | { username: string; email: string };
+  uploaded_by_name?: string;
+  created_at?: string;
+  uploaded_at?: string;
 }
 
 interface Client {
   id: number;
   client_name: string;
+  // ... (Client interface remains same)
   client_type: string;
   industry: string;
   status: 'active' | 'inactive' | 'on_hold' | 'terminated' | 'prospect';
@@ -97,8 +99,7 @@ interface ClientDetailsProps {
 
 import { requests } from '@/lib/urls';
 import axiosInstance from '@/axios/axios';
-
-// ... existing imports ...
+import { backendUrl } from '@/components/Constants/Constants';
 
 // Document type options based on your Django model
 const DOCUMENT_TYPES = [
@@ -137,10 +138,7 @@ const ClientDetails = ({
     description: '',
     file: null as File | null,
   });
-  const [adminNotes, setAdminNotes] = useState<AdminNote[]>([]);
-  const [notesLoading, setNotesLoading] = useState(false);
-  const [newNote, setNewNote] = useState('');
-  const [isAddingNote, setIsAddingNote] = useState(false);
+  // Removed adminNotes state
   const [processingPayment, setProcessingPayment] = useState(false);
 
   // Sync clientDocuments with selectedClient.documents
@@ -154,32 +152,28 @@ const ClientDetails = ({
 
   // Document fetch is handled by parent fetching client details now
 
-  const fetchAdminNotes = async () => {
-    if (!selectedClient) return;
-    setNotesLoading(true);
-    try {
-      const response = await axiosInstance.get(requests.ClientAdminNotes(selectedClient.id));
-      setAdminNotes(response.data);
-    } catch (error) {
-      console.error('Error fetching admin notes:', error);
-    } finally {
-      setNotesLoading(false);
-    }
+  const getDocumentUrl = (docUrl: string) => {
+    if (!docUrl) return '#';
+    if (docUrl.startsWith('http')) return docUrl;
+    // backendUrl ends with / usually
+    return `${backendUrl}${docUrl.startsWith('/') ? docUrl.slice(1) : docUrl}`;
   };
 
-  const handleAddAdminNote = async () => {
-    if (!selectedClient || !newNote.trim()) return;
-    setIsAddingNote(true);
+  const handleDeleteDocument = async (docId: number) => {
+    if (!confirm('Are you sure you want to delete this document?')) return;
+
     try {
-      const response = await axiosInstance.post(requests.ClientAdminNoteCreate(selectedClient.id), {
-        note: newNote
-      });
-      setAdminNotes(prev => [response.data, ...prev]);
-      setNewNote('');
-    } catch (error) {
-      console.error('Error adding admin note:', error);
-    } finally {
-      setIsAddingNote(false);
+      await axiosInstance.delete(requests.ClientDocumentDelete(docId));
+      toast.success('Document deleted successfully');
+      // Update local state
+      setClientDocuments(prev => prev.filter(doc => doc.id !== docId));
+      // Call callback to refresh parent state if provided
+      if (onDocumentUploaded) {
+        onDocumentUploaded();
+      }
+    } catch (err: any) {
+      console.error('Error deleting document:', err);
+      toast.error(err.response?.data?.error || 'Failed to delete document');
     }
   };
 
@@ -198,33 +192,9 @@ const ClientDetails = ({
     }
   };
 
-  // Sync admin notes when client changes
-  useEffect(() => {
-    fetchAdminNotes();
-  }, [selectedClient?.id]);
-
   // API call to delete a document - DISABLED (No endpoint provided)
-  const handleDeleteDocument = async (documentId: number) => {
-    alert("Document deletion is currently not supported by the server.");
-    // if (!confirm('Are you sure you want to delete this document?')) {
-    //   return;
-    // }
 
-    // try {
-    //   await axiosInstance.delete(`${requests.CreateClientDocuments}${documentId}/`);
-    //   
-    //   // Remove the document from local state
-    //   setClientDocuments(prev => prev.filter(doc => doc.id !== documentId));
-    //   
-    //   // Call callback if provided
-    //   if (onDocumentUploaded) {
-    //     onDocumentUploaded();
-    //   }
-    // } catch (error: any) {
-    //   console.error('Error deleting document:', error);
-    //   alert('Failed to delete document. Please try again.');
-    // }
-  };
+
 
   // Safe getInitials function
   const getInitials = (name: string | undefined | null): string => {
@@ -703,10 +673,6 @@ const ClientDetails = ({
             <FileText className="h-4 w-4" />
             <span>Documents</span>
           </TabsTrigger>
-          <TabsTrigger value="notes" className="flex items-center gap-2 py-3">
-            <FileText className="h-4 w-4" />
-            <span>Admin Notes</span>
-          </TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -822,131 +788,20 @@ const ClientDetails = ({
         </TabsContent>
 
         {/* Payment Tab */}
-        <TabsContent value="payment" className="space-y-6 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                Payment Information
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <span className="text-sm text-muted-foreground">Payment Cycle</span>
-                    <span className="font-medium">{getPaymentCycleDisplay(selectedClient.payment_cycle)}</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <span className="text-sm text-muted-foreground">Payment Date</span>
-                    <span className="font-medium">{getPaymentDateDisplay(selectedClient.payment_date)} of month</span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <span className="text-sm text-muted-foreground">Current Status</span>
-                    <Badge className={getPaymentStatusColor(selectedClient.current_month_payment_status)}>
-                      {formatStatus(selectedClient.current_month_payment_status)}
-                    </Badge>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <span className="text-sm text-muted-foreground">Next Payment Date</span>
-                    <span className="font-medium">
-                      {selectedClient.next_payment_date ? formatDate(selectedClient.next_payment_date) : 'Not set'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <span className="text-sm text-muted-foreground">Last Payment Date</span>
-                    <span className="font-medium">
-                      {selectedClient.last_payment_date ? formatDate(selectedClient.last_payment_date) : 'N/A'}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <span className="text-sm text-muted-foreground">Monthly Retainer</span>
-                    <span className="font-medium text-green-600">
-                      {selectedClient.monthly_retainer ? `₹${selectedClient.monthly_retainer}` : 'Not set'}
-                    </span>
-                  </div>
-                </div>
-              </div>
 
-              {selectedClient.current_month_payment_status === 'pending' && (
-                <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Clock className="h-5 w-5 text-yellow-600" />
-                    <div>
-                      <p className="font-medium text-yellow-800">Payment Pending</p>
-                      <p className="text-sm text-yellow-700">
-                        This client's payment for the current month is pending.
-                        {selectedClient.next_payment_date && (
-                          <> Next payment is due on {formatDate(selectedClient.next_payment_date)}.</>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    className="mt-3 bg-yellow-600 hover:bg-yellow-700"
-                    onClick={handleProcessPayment}
-                    disabled={processingPayment}
-                  >
-                    {processingPayment ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                    )}
-                    Process Payment
-                  </Button>
-                </div>
-              )}
 
-              {selectedClient.current_month_payment_status === 'overdue' && (
-                <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <AlertTriangle className="h-5 w-5 text-red-600" />
-                    <div>
-                      <p className="font-medium text-red-800">Payment Overdue</p>
-                      <p className="text-sm text-red-700">
-                        This client's payment is overdue. Please follow up immediately.
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    className="mt-3 bg-red-600 hover:bg-red-700"
-                    onClick={handleProcessPayment}
-                    disabled={processingPayment}
-                  >
-                    {processingPayment ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <CheckCircle2 className="h-4 w-4 mr-2" />
-                    )}
-                    Process Payment
-                  </Button>
-                </div>
-              )}
-
-              {selectedClient.current_month_payment_status === 'paid' && (
-                <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <CheckCircle2 className="h-5 w-5 text-green-600" />
-                    <div>
-                      <p className="font-medium text-green-800">Payment Received</p>
-                      <p className="text-sm text-green-700">
-                        Payment for the current month has been received.
-                        {selectedClient.last_payment_date && (
-                          <> Last payment was on {formatDate(selectedClient.last_payment_date)}.</>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {/* Payment Tab */}
+        < TabsContent value="payment" className="space-y-6 mt-6" >
+          <ClientPaymentList
+            clientId={selectedClient.id}
+            clientName={selectedClient.client_name}
+            monthlyRetainer={selectedClient.monthly_retainer}
+            onUpdate={onRefresh}
+          />
+        </TabsContent >
 
         {/* Content Tab */}
-        <TabsContent value="content" className="space-y-6 mt-6">
+        < TabsContent value="content" className="space-y-6 mt-6" >
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -979,10 +834,10 @@ const ClientDetails = ({
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        </TabsContent >
 
         {/* Documents Tab */}
-        <TabsContent value="documents" className="space-y-6 mt-6">
+        < TabsContent value="documents" className="space-y-6 mt-6" >
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <div className="flex items-center gap-4">
@@ -1045,36 +900,36 @@ const ClientDetails = ({
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="font-medium truncate">{doc.title}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {DOCUMENT_TYPES.find(t => t.value === doc.document_type)?.label || doc.document_type} • {formatDate(doc.uploaded_at)}
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Uploaded by {doc.uploaded_by_name || (typeof doc.uploaded_by === 'object' ? doc.uploaded_by.username : doc.uploaded_by) || 'Unknown'} on {formatDate(doc.created_at || doc.uploaded_at || '')}
                             </p>
                             {doc.description && (
                               <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                                 {doc.description}
-
                               </p>
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center justify-end gap-2 mt-4">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onDownloadFile(doc.file, doc.title)}
-                            className="flex items-center gap-2"
-                          >
-                            <Download className="h-4 w-4" />
-                            Download
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteDocument(doc.id)}
-                            className="flex items-center gap-2 text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <X className="h-4 w-4" />
-                            Delete
-                          </Button>
+                        <div className="flex items-center justify-end mt-4">
+                          <div className="flex gap-2">
+                            <Button size="icon" variant="ghost" className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50" asChild>
+                              <a href={getDocumentUrl(doc.file)} target="_blank" rel="noopener noreferrer" title="View">
+                                <Download className="h-4 w-4" />
+                              </a>
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteDocument(doc.id);
+                              }}
+                              title="Delete"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -1095,74 +950,11 @@ const ClientDetails = ({
               )}
             </CardContent>
           </Card>
-        </TabsContent>
+        </TabsContent >
 
-        {/* Admin Notes Tab */}
-        <TabsContent value="notes" className="space-y-6 mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Admin Notes
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <textarea
-                  value={newNote}
-                  onChange={(e) => setNewNote(e.target.value)}
-                  placeholder="Add a new internal note about this client..."
-                  className="w-full min-h-[100px] p-3 rounded-lg border bg-background"
-                  disabled={isAddingNote}
-                />
-                <div className="flex justify-end">
-                  <Button
-                    onClick={handleAddAdminNote}
-                    disabled={isAddingNote || !newNote.trim()}
-                  >
-                    {isAddingNote ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Plus className="h-4 w-4 mr-2" />
-                    )}
-                    Add Note
-                  </Button>
-                </div>
-              </div>
 
-              <Separator />
-
-              <div className="space-y-4">
-                {notesLoading ? (
-                  <div className="text-center py-8">
-                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-muted-foreground">Loading notes...</p>
-                  </div>
-                ) : adminNotes.length > 0 ? (
-                  adminNotes.map((note) => (
-                    <div key={note.id} className="p-4 rounded-lg bg-muted/30 border space-y-2">
-                      <div className="flex justify-between items-start">
-                        <p className="font-medium text-sm text-primary">
-                          {note.created_by_name || 'Admin'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDate(note.created_at)}
-                        </p>
-                      </div>
-                      <p className="text-sm">{note.note}</p>
-                    </div>
-                  ))
-                ) : (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <p>No admin notes yet</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-    </div>
+      </Tabs >
+    </div >
   );
 };
 
