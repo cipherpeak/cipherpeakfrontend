@@ -89,6 +89,7 @@ const AddEmployeeModal = ({
     // Personal Information
     username: '',
     email: '',
+    password: '',
     first_name: '',
     last_name: '',
     phone_number: '',
@@ -175,6 +176,7 @@ const AddEmployeeModal = ({
         setFormData({
           username: employeeToEdit.username || '',
           email: employeeToEdit.email || '',
+          password: '',
           first_name: employeeToEdit.first_name || '',
           last_name: employeeToEdit.last_name || '',
           phone_number: employeeToEdit.phone_number || '',
@@ -389,6 +391,7 @@ const AddEmployeeModal = ({
     setFormData({
       username: '',
       email: '',
+      password: '',
       first_name: '',
       last_name: '',
       phone_number: '',
@@ -618,6 +621,21 @@ const AddEmployeeModal = ({
                   className="h-11"
                 />
               </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label htmlFor="password" className="text-sm font-medium">
+                Password *
+              </Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Secure password"
+                value={formData.password}
+                onChange={(e) => handleInputChange('password', e.target.value)}
+                required={mode === 'add'}
+                className="h-11"
+              />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
