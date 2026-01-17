@@ -26,6 +26,7 @@ export const requests = {
     TasksCreatedByMe: 'tasks/created-by-me/',
 
     // Auth/Employee API
+    Logout: 'auth/logout/',
     EmployeeList: 'auth/employees/',
     EmployeeDocumentUpload: (id: number) => `auth/employees/upload_document/${id}/`,
     EmployeeMediaUpload: (id: number) => `auth/employees/upload_media/${id}/`,

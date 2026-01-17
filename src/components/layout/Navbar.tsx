@@ -1,5 +1,7 @@
 // Update your Navbar component to add Leave Management option
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -12,13 +14,29 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Moon, Sun, User, Settings, LogOut, Bell, Calendar } from 'lucide-react';
 import logo from "../../assets/cipher_peak full.png"
+import { logout } from '../../Redux/slices/authSlice';
+import axiosInstance from '../../axios/axios';
+import { requests } from '../../lib/urls';
 
 interface NavbarProps {
-  onNavigateToLeaveManagement?: () => void; // Add this prop
+  onNavigateToLeaveManagement?: () => void;
 }
 
 const Navbar = ({ onNavigateToLeaveManagement }: NavbarProps) => {
   const [notifications] = useState(3);
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await axiosInstance.post(requests.Logout);
+    } catch (error) {
+      console.error("Logout failed:", error);
+    } finally {
+      dispatch(logout());
+      navigate('/login');
+    }
+  };
 
   return (
     <nav className="h-16 bg-card border-b border-border flex items-center justify-between px-6 sticky top-0 z-50">
@@ -75,7 +93,7 @@ const Navbar = ({ onNavigateToLeaveManagement }: NavbarProps) => {
               <span>Settings</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
               <LogOut className="mr-2 h-4 w-4" />
               <span>Log out</span>
             </DropdownMenuItem>

@@ -22,6 +22,9 @@ import PrivateRoute from "./lib/PrivateRoute";
 import Dolla from "./pages/Dolla";
 import LeaveManagement from "./pages/LeaveManagement";
 import Verification from "./pages/Verification";
+import Reports from "./pages/Reports";
+import ClientReportDetail from "./pages/ClientReportDetail";
+import EmployeeReportDetail from "./pages/EmployeeReportDetail";
 
 const queryClient = new QueryClient();
 
@@ -107,6 +110,32 @@ const App = () => (
               element={
                 <PrivateRoute>
                   <Verification />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="reports"
+              element={
+                <PrivateRoute>
+                  <Reports />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="reports/client/:id"
+              element={
+                <PrivateRoute>
+                  <ClientReportDetail />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="reports/employee/:id"
+              element={
+                <PrivateRoute>
+                  <EmployeeReportDetail />
                 </PrivateRoute>
               }
             />
