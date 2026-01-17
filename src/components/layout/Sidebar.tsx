@@ -10,7 +10,8 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  IndianRupee, // Added DollarSign icon
+  IndianRupee,
+  CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -26,7 +27,8 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
     { icon: UserCheck, label: 'Clients', path: '/clients' },
     { icon: CheckSquare, label: 'Tasks', path: '/tasks' },
     { icon: Calendar, label: 'Calendar', path: '/calendar' },
-    { icon: IndianRupee, label: 'Dolla', path: '/dolla' }, 
+    { icon: IndianRupee, label: 'Dolla', path: '/dolla' },
+    { icon: CheckCircle2, label: 'Verification', path: '/verification' },
     { icon: BarChart3, label: 'Reports', path: '/reports' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];

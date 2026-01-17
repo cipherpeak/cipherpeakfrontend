@@ -21,6 +21,7 @@ import NotFound from "./pages/NotFound";
 import PrivateRoute from "./lib/PrivateRoute";
 import Dolla from "./pages/Dolla";
 import LeaveManagement from "./pages/LeaveManagement";
+import Verification from "./pages/Verification";
 
 const queryClient = new QueryClient();
 
@@ -36,9 +37,9 @@ const App = () => (
             <Route
               index
               element={
-               <PrivateRoute>
+                <PrivateRoute>
                   <Dashboard />
-              </PrivateRoute>
+                </PrivateRoute>
               }
             />
             <Route
@@ -86,10 +87,10 @@ const App = () => (
               path="leave-management"
               element={
                 <PrivateRoute>
-                  <LeaveManagement/>
+                  <LeaveManagement />
                 </PrivateRoute>
               }
-            />  
+            />
 
 
             <Route
@@ -97,6 +98,15 @@ const App = () => (
               element={
                 <PrivateRoute>
                   <Dolla />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="verification"
+              element={
+                <PrivateRoute>
+                  <Verification />
                 </PrivateRoute>
               }
             />
