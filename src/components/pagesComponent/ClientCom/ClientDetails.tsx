@@ -134,8 +134,6 @@ const ClientDetails = ({
   const [clientDocuments, setClientDocuments] = useState<ClientDocument[]>([]);
   const [uploadForm, setUploadForm] = useState({
     document_type: '',
-    title: '',
-    description: '',
     file: null as File | null,
   });
   // Removed adminNotes state
@@ -332,8 +330,7 @@ const ClientDetails = ({
     try {
       const formData = new FormData();
       formData.append('document_type', uploadForm.document_type);
-      formData.append('title', uploadForm.title);
-      formData.append('description', uploadForm.description || '');
+      formData.append('title', uploadForm.file.name); // Using filename as title
       formData.append('file', uploadForm.file);
       formData.append('client', selectedClient.id.toString());
 
@@ -392,8 +389,6 @@ const ClientDetails = ({
   const resetUploadForm = () => {
     setUploadForm({
       document_type: '',
-      title: '',
-      description: '',
       file: null,
     });
     setUploadError(null);
@@ -504,34 +499,7 @@ const ClientDetails = ({
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={uploadForm.title}
-                  onChange={(e) => setUploadForm(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full p-2 border rounded-md dark:bg-gray-800 dark:border-gray-700"
-                  placeholder="Enter document title"
-                  disabled={uploadLoading}
-                />
-              </div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Description
-                </label>
-                <textarea
-                  value={uploadForm.description}
-                  onChange={(e) => setUploadForm(prev => ({ ...prev, description: e.target.value }))}
-                  className="w-full p-2 border rounded-md dark:bg-gray-800 dark:border-gray-700"
-                  rows={3}
-                  placeholder="Enter document description (optional)"
-                  disabled={uploadLoading}
-                />
-              </div>
 
               <div>
                 <label className="block text-sm font-medium mb-2">
@@ -568,7 +536,7 @@ const ClientDetails = ({
                 <Button
                   type="submit"
                   className="flex-1"
-                  disabled={uploadLoading || !uploadForm.document_type || !uploadForm.title || !uploadForm.file}
+                  disabled={uploadLoading || !uploadForm.document_type || !uploadForm.file}
                 >
                   {uploadLoading ? (
                     <>
@@ -899,7 +867,12 @@ const ClientDetails = ({
                             <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{doc.title}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium truncate">{doc.title}</p>
+                              <Badge variant="outline" className="text-[10px] h-4 px-1 capitalize">
+                                {doc.document_type?.replace('_', ' ')}
+                              </Badge>
+                            </div>
                             <p className="text-xs text-muted-foreground mt-1">
                               Uploaded by {doc.uploaded_by_name || (typeof doc.uploaded_by === 'object' ? doc.uploaded_by.username : doc.uploaded_by) || 'Unknown'} on {formatDate(doc.created_at || doc.uploaded_at || '')}
                             </p>
