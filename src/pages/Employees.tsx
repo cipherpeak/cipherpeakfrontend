@@ -183,7 +183,6 @@ const Employees = () => {
   };
 
 
-  console.log(employees, "thjkliugfdcvbnm");
 
 
   useEffect(() => {
@@ -483,7 +482,6 @@ const Employees = () => {
                   key={employee.id}
                   employee={employee}
                   onViewDetails={handleViewDetails}
-                  onEdit={handleEditEmployee}
                   onDelete={handleDeleteEmployee}
                 />
               ))}

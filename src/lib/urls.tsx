@@ -57,4 +57,10 @@ export const requests = {
     SalaryPaymentList: 'auth/salary-payment-history/',
     ProcessSalaryPayment: (id: number) => `auth/process-salary-payment/${id}/`,
     PaymentDetail: (id: number) => `auth/payments/${id}/`,
+
+    // Verification API
+    VerificationList: 'api/verifications/',
+    VerificationCreate: 'api/verifications/',
+    VerificationDetail: (id: number) => `api/verifications/${id}/`,
+    VerificationByClientMonth: 'api/verifications/by-client-month/',
 };

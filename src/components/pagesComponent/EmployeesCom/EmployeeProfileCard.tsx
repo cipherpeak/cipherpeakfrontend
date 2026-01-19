@@ -11,7 +11,6 @@ import {
   MoreHorizontal,
   Mail,
   Phone,
-  Edit,
   Trash2,
   Eye,
   Building,
@@ -52,14 +51,12 @@ interface Employee {
 interface EmployeeProfileCardProps {
   employee: Employee;
   onViewDetails: (employee: Employee) => void;
-  onEdit: (employee: Employee) => void;
   onDelete: (employeeId: number) => void;
 }
 
 export const EmployeeProfileCard: React.FC<EmployeeProfileCardProps> = ({
   employee,
   onViewDetails,
-  onEdit,
   onDelete,
 }) => {
   const getFullName = (emp: Employee) => {
@@ -122,10 +119,7 @@ export const EmployeeProfileCard: React.FC<EmployeeProfileCardProps> = ({
                 <Eye className="mr-2 h-4 w-4" />
                 View Details
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onEdit(employee)}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit
-              </DropdownMenuItem>
+
               <DropdownMenuItem
                 className="text-destructive"
                 onClick={() => onDelete(employee.id)}
