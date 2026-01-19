@@ -484,16 +484,7 @@ const Clients = () => {
                             <Eye className="mr-2 h-4 w-4" />
                             View Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleEditClient(client)}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </DropdownMenuItem>
-                          {client.current_month_payment_status === 'pending' && (
-                            <DropdownMenuItem onClick={() => handleMarkPaymentPaid(client.id)}>
-                              <CheckCircle2 className="mr-2 h-4 w-4" />
-                              Mark as Paid
-                            </DropdownMenuItem>
-                          )}
+
                           <DropdownMenuItem
                             className="text-destructive"
                             onClick={() => handleDeleteClient(client.id)}
