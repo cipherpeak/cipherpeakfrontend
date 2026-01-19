@@ -307,8 +307,8 @@ const Employees = () => {
 
     const formData = new FormData();
     formData.append('document_type', docUploadForm.document_type);
-    formData.append('title', docUploadForm.title);
-    formData.append('description', docUploadForm.description);
+    // Use file name as title since input is removed
+    formData.append('title', docUploadForm.file.name);
     formData.append('file', docUploadForm.file);
 
     try {
@@ -336,8 +336,8 @@ const Employees = () => {
 
     const formData = new FormData();
     formData.append('media_type', mediaUploadForm.media_type);
-    formData.append('title', mediaUploadForm.title);
-    formData.append('description', mediaUploadForm.description);
+    // Use file name as title since input is removed
+    formData.append('title', mediaUploadForm.file.name);
     formData.append('file', mediaUploadForm.file);
 
     try {
@@ -932,12 +932,7 @@ const Employees = () => {
             <h3 className="text-lg font-semibold mb-4">Upload Document</h3>
             <form onSubmit={handleUploadDocument} className="space-y-4">
               {uploadError && <div className="text-red-500 text-sm">{uploadError}</div>}
-              <Input
-                placeholder="Title"
-                value={docUploadForm.title}
-                onChange={e => setDocUploadForm({ ...docUploadForm, title: e.target.value })}
-                required
-              />
+              
               <select
                 className="w-full p-2 border rounded-md dark:bg-gray-800"
                 value={docUploadForm.document_type}
@@ -959,11 +954,7 @@ const Employees = () => {
                 <option value="termination">Termination Letter</option>
                 <option value="other">Other</option>
               </select>
-              <Input
-                placeholder="Description"
-                value={docUploadForm.description}
-                onChange={e => setDocUploadForm({ ...docUploadForm, description: e.target.value })}
-              />
+              
               <Input
                 type="file"
                 onChange={e => setDocUploadForm({ ...docUploadForm, file: e.target.files?.[0] || null })}
@@ -985,12 +976,7 @@ const Employees = () => {
             <h3 className="text-lg font-semibold mb-4">Upload Media</h3>
             <form onSubmit={handleUploadMedia} className="space-y-4">
               {uploadError && <div className="text-red-500 text-sm">{uploadError}</div>}
-              <Input
-                placeholder="Title"
-                value={mediaUploadForm.title}
-                onChange={e => setMediaUploadForm({ ...mediaUploadForm, title: e.target.value })}
-                required
-              />
+              
               <select
                 className="w-full p-2 border rounded-md dark:bg-gray-800"
                 value={mediaUploadForm.media_type}
@@ -1007,11 +993,7 @@ const Employees = () => {
                 <option value="award_certificate">Award Certificate</option>
                 <option value="other">Other</option>
               </select>
-              <Input
-                placeholder="Description"
-                value={mediaUploadForm.description}
-                onChange={e => setMediaUploadForm({ ...mediaUploadForm, description: e.target.value })}
-              />
+              
               <Input
                 type="file"
                 onChange={e => setMediaUploadForm({ ...mediaUploadForm, file: e.target.files?.[0] || null })}
