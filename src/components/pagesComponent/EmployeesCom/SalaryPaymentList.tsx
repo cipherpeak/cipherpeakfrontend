@@ -23,6 +23,7 @@ import { requests } from '@/lib/urls';
 import { toast } from 'sonner';
 import ProcessSalaryModal, { SalaryPaymentData } from '@/components/modals/ProcessSalaryModal';
 import PaymentDetailModal from '@/components/modals/PaymentDetailModal';
+import { cn } from '@/lib/utils';
 
 interface SalaryPayment {
     id: number;
@@ -56,15 +57,15 @@ const SalaryPaymentList = ({ employeeId, employeeName, salary, onUpdate }: Salar
 
     const fetchPayments = async () => {
         if (!employeeId) return;
-        setLoading(true);
         try {
-            // Now fetching with employee_id query param as backend supports it
-            const response = await axiosInstance.get(`${requests.SalaryPaymentList}?employee_id=${employeeId}`);
+            setLoading(true);
+            const response = await axiosInstance.get(requests.SalaryPaymentList, {
+                params: { employee_id: employeeId }
+            });
             setPayments(response.data);
-        } catch (err) {
-            console.error('Error fetching salary payments:', err);
-            toast.error('Failed to load salary history');
-            setPayments([]);
+        } catch (error) {
+            console.error('Error fetching payments:', error);
+            toast.error('Failed to fetch payment history');
         } finally {
             setLoading(false);
         }
@@ -78,13 +79,13 @@ const SalaryPaymentList = ({ employeeId, employeeName, salary, onUpdate }: Salar
         setProcessing(true);
         try {
             await axiosInstance.post(requests.ProcessSalaryPayment(employeeId), data);
-            toast.success('Salary payment processed successfully');
+            toast.success('Salary processed successfully');
             setIsProcessModalOpen(false);
             fetchPayments(); // Refresh list locally
             if (onUpdate) onUpdate(); // Optional parent refresh
-        } catch (err: any) {
-            console.error('Error processing payment:', err);
-            toast.error(err.response?.data?.error || 'Failed to process salary payment');
+        } catch (error) {
+            console.error('Error processing salary:', error);
+            toast.error('Failed to process salary');
         } finally {
             setProcessing(false);
         }
@@ -99,18 +100,22 @@ const SalaryPaymentList = ({ employeeId, employeeName, salary, onUpdate }: Salar
         switch (status.toLowerCase()) {
             case 'paid':
             case 'early_paid':
-                return 'bg-green-100 text-green-800 border-green-200';
+                return 'bg-green-100 text-green-700 border-green-200';
             case 'pending':
-                return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+                return 'bg-yellow-100 text-yellow-700 border-yellow-200';
             case 'overdue':
-                return 'bg-red-100 text-red-800 border-red-200';
+                return 'bg-red-100 text-red-700 border-red-200';
             default:
-                return 'bg-gray-100 text-gray-800 border-gray-200';
+                return 'bg-blue-100 text-blue-700 border-blue-200';
         }
     };
 
     const getMonthName = (month: number) => {
-        return new Date(2000, month - 1).toLocaleString('default', { month: 'short' });
+        const months = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ];
+        return months[month - 1] || 'Unknown';
     };
 
     const formatDate = (dateString: string) => {
@@ -123,12 +128,17 @@ const SalaryPaymentList = ({ employeeId, employeeName, salary, onUpdate }: Salar
 
     return (
         <div className="space-y-6">
-            <Card>
+            <Card className="shadow-md border-none ring-1 ring-black/5">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-xl font-bold flex items-center gap-2">
-                        <IndianRupee className="h-5 w-5 text-primary" />
-                        Salary Payment History
-                    </CardTitle>
+                    <div>
+                        <CardTitle className="text-xl font-bold flex items-center gap-2">
+                            <span className="p-2 bg-primary/10 rounded-lg">
+                                <IndianRupee className="h-5 w-5 text-primary" />
+                            </span>
+                            Salary Payment History
+                        </CardTitle>
+                        <p className="text-sm text-muted-foreground mt-1">Manage and track employee salary records</p>
+                    </div>
                     <Button onClick={() => setIsProcessModalOpen(true)}>
                         <Plus className="h-4 w-4 mr-2" />
                         Process Salary
@@ -160,7 +170,7 @@ const SalaryPaymentList = ({ employeeId, employeeName, salary, onUpdate }: Salar
                                             <TableCell>
                                                 {formatDate(payment.payment_date)}
                                             </TableCell>
-                                            <TableCell>₹{payment.net_amount}</TableCell>
+                                            <TableCell className="font-semibold">₹{payment.net_amount}</TableCell>
                                             <TableCell>
                                                 <Badge variant="outline" className={getStatusColor(payment.status)}>
                                                     {payment.status_display}

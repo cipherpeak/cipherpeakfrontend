@@ -27,6 +27,7 @@ export interface SalaryPaymentData {
     deductions: string;
     payment_method: string;
     remarks: string;
+    payment_date: string;
 }
 
 interface ProcessSalaryModalProps {
@@ -35,6 +36,7 @@ interface ProcessSalaryModalProps {
     onConfirm: (data: SalaryPaymentData) => Promise<void>;
     employeeName: string;
     defaultSalary?: string;
+    preSelectedDate?: Date;
     isLoading?: boolean;
 }
 
@@ -44,6 +46,7 @@ const ProcessSalaryModal = ({
     onConfirm,
     employeeName,
     defaultSalary,
+    preSelectedDate,
     isLoading = false,
 }: ProcessSalaryModalProps) => {
     const [formData, setFormData] = useState<SalaryPaymentData>({
@@ -52,6 +55,7 @@ const ProcessSalaryModal = ({
         deductions: '0',
         payment_method: 'bank_transfer',
         remarks: '',
+        payment_date: preSelectedDate ? preSelectedDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
     });
 
     const [netAmount, setNetAmount] = useState<number>(0);
@@ -61,6 +65,15 @@ const ProcessSalaryModal = ({
             setFormData(prev => ({ ...prev, base_salary: defaultSalary }));
         }
     }, [defaultSalary]);
+
+    useEffect(() => {
+        if (preSelectedDate) {
+            setFormData(prev => ({ 
+                ...prev, 
+                payment_date: preSelectedDate.toISOString().split('T')[0] 
+            }));
+        }
+    }, [preSelectedDate]);
 
     useEffect(() => {
         const base = parseFloat(formData.base_salary) || 0;
@@ -133,6 +146,17 @@ const ProcessSalaryModal = ({
                                     ))}
                                 </SelectContent>
                             </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                            <Label htmlFor="payment_date" className="text-xs">Payment Date *</Label>
+                            <Input
+                                id="payment_date"
+                                type="date"
+                                className="h-9"
+                                value={formData.payment_date}
+                                onChange={(e) => handleInputChange('payment_date', e.target.value)}
+                                required
+                            />
                         </div>
                     </div>
 
