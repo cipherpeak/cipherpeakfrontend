@@ -167,7 +167,8 @@ const AddEmployeeModal = ({
     { value: 'other', label: 'Other' },
     { value: 'prefer_not_to_say', label: 'Prefer not to say' },
   ];
-
+   console.log(employeeToEdit,"employeeToEdit");
+   
   // Reset form when modal opens/closes or employeeToEdit changes
   useEffect(() => {
     if (open) {
@@ -603,7 +604,7 @@ const AddEmployeeModal = ({
                   onChange={(e) => handleInputChange('username', e.target.value)}
                   required
                   disabled={mode === 'edit'}
-                  className="h-11"
+                  className="h-11 text-black"
                 />
               </div>
 
@@ -618,25 +619,41 @@ const AddEmployeeModal = ({
                   value={formData.email}
                   onChange={(e) => handleInputChange('email', e.target.value)}
                   required
-                  className="h-11"
+                  className="h-11 text-black"
                 />
               </div>
             </div>
 
-            <div className="space-y-3">
-              <Label htmlFor="password" className="text-sm font-medium">
-                Password *
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Secure password"
-                value={formData.password}
-                onChange={(e) => handleInputChange('password', e.target.value)}
-                required={mode === 'add'}
-                className="h-11"
-              />
-            </div>
+            {mode === 'add' ? (
+              <div className="space-y-3">
+                <Label htmlFor="password" className="text-sm font-medium">
+                  Password *
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Secure password"
+                  value={formData.password}
+                  onChange={(e) => handleInputChange('password', e.target.value)}
+                  required
+                  className="h-11 text-black"
+                />
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">
+                  Password
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full h-11 justify-start text-black border-dashed"
+                  onClick={() => toast.info("Password reset functionality coming soon")}
+                >
+                  Forgot Password?
+                </Button>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="space-y-3">
@@ -649,7 +666,7 @@ const AddEmployeeModal = ({
                   value={formData.first_name}
                   onChange={(e) => handleInputChange('first_name', e.target.value)}
                   required
-                  className="h-11"
+                  className="h-11 text-black"
                 />
               </div>
 
@@ -663,7 +680,7 @@ const AddEmployeeModal = ({
                   value={formData.last_name}
                   onChange={(e) => handleInputChange('last_name', e.target.value)}
                   required
-                  className="h-11"
+                  className="h-11 text-black"
                 />
               </div>
             </div>
@@ -678,7 +695,7 @@ const AddEmployeeModal = ({
                   placeholder="+1 (555) 123-4567"
                   value={formData.phone_number}
                   onChange={(e) => handleInputChange('phone_number', e.target.value)}
-                  className="h-11"
+                  className="h-11 text-black"
                 />
               </div>
 
@@ -690,7 +707,7 @@ const AddEmployeeModal = ({
                   value={formData.gender}
                   onValueChange={(value) => handleInputChange('gender', value)}
                 >
-                  <SelectTrigger className="h-11">
+                  <SelectTrigger className="h-11 text-black">
                     <SelectValue placeholder="Select gender" />
                   </SelectTrigger>
                   <SelectContent>
@@ -712,7 +729,7 @@ const AddEmployeeModal = ({
                     <Button
                       variant="outline"
                       className={cn(
-                        "w-full h-11 justify-start text-left font-normal",
+                        "w-full h-11 justify-start text-left font-normal text-black",
                         !dobDate && "text-muted-foreground"
                       )}
                     >
@@ -751,7 +768,7 @@ const AddEmployeeModal = ({
                 rows={3}
                 value={formData.address}
                 onChange={(e) => handleInputChange('address', e.target.value)}
-                className="resize-none"
+                className="resize-none text-black"
               />
             </div>
 
@@ -765,7 +782,7 @@ const AddEmployeeModal = ({
                   placeholder="City"
                   value={formData.city}
                   onChange={(e) => handleInputChange('city', e.target.value)}
-                  className="h-11"
+                  className="h-11 text-black"
                 />
               </div>
 
@@ -778,7 +795,7 @@ const AddEmployeeModal = ({
                   placeholder="State"
                   value={formData.state}
                   onChange={(e) => handleInputChange('state', e.target.value)}
-                  className="h-11"
+                  className="h-11 text-black"
                 />
               </div>
 
@@ -791,7 +808,7 @@ const AddEmployeeModal = ({
                   placeholder="Postal Code"
                   value={formData.postal_code}
                   onChange={(e) => handleInputChange('postal_code', e.target.value)}
-                  className="h-11"
+                  className="h-11 text-black"
                 />
               </div>
 
@@ -804,7 +821,7 @@ const AddEmployeeModal = ({
                   placeholder="Country"
                   value={formData.country}
                   onChange={(e) => handleInputChange('country', e.target.value)}
-                  className="h-11"
+                  className="h-11 text-black"
                 />
               </div>
             </div>
@@ -827,7 +844,7 @@ const AddEmployeeModal = ({
                   placeholder="Emergency contact name"
                   value={formData.emergency_contact_name}
                   onChange={(e) => handleInputChange('emergency_contact_name', e.target.value)}
-                  className="h-11"
+                  className="h-11 text-black"
                 />
               </div>
 
@@ -840,7 +857,7 @@ const AddEmployeeModal = ({
                   placeholder="Emergency contact phone"
                   value={formData.emergency_contact_phone}
                   onChange={(e) => handleInputChange('emergency_contact_phone', e.target.value)}
-                  className="h-11"
+                  className="h-11 text-black"
                 />
               </div>
             </div>
@@ -854,7 +871,7 @@ const AddEmployeeModal = ({
                 placeholder="Relationship with employee"
                 value={formData.emergency_contact_relation}
                 onChange={(e) => handleInputChange('emergency_contact_relation', e.target.value)}
-                className="h-11"
+                className="h-11 text-black"
               />
             </div>
           </div>
@@ -876,7 +893,7 @@ const AddEmployeeModal = ({
                   placeholder="EMP-001"
                   value={formData.employee_id}
                   onChange={(e) => handleInputChange('employee_id', e.target.value)}
-                  className="h-11"
+                  className="h-11 text-black"
                 />
               </div>
 
@@ -888,7 +905,7 @@ const AddEmployeeModal = ({
                   value={formData.role}
                   onValueChange={(value) => handleInputChange('role', value)}
                 >
-                  <SelectTrigger className="h-11">
+                  <SelectTrigger className="h-11 text-black">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -911,7 +928,7 @@ const AddEmployeeModal = ({
                   value={formData.department}
                   onValueChange={(value) => handleInputChange('department', value)}
                 >
-                  <SelectTrigger className="h-11">
+                  <SelectTrigger className="h-11 text-black">
                     <SelectValue placeholder="Select department" />
                   </SelectTrigger>
                   <SelectContent>
@@ -933,7 +950,7 @@ const AddEmployeeModal = ({
                   placeholder="Job title/position"
                   value={formData.designation}
                   onChange={(e) => handleInputChange('designation', e.target.value)}
-                  className="h-11"
+                  className="h-11 text-black"
                 />
               </div>
             </div>
@@ -951,7 +968,7 @@ const AddEmployeeModal = ({
                   min="0"
                   value={formData.salary}
                   onChange={(e) => handleInputChange('salary', e.target.value)}
-                  className="h-11"
+                  className="h-11 text-black"
                 />
               </div>
 
@@ -963,7 +980,7 @@ const AddEmployeeModal = ({
                   value={formData.current_status}
                   onValueChange={(value) => handleInputChange('current_status', value)}
                 >
-                  <SelectTrigger className="h-11">
+                  <SelectTrigger className="h-11 text-black">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -984,7 +1001,7 @@ const AddEmployeeModal = ({
                   <Button
                     variant="outline"
                     className={cn(
-                      "w-full h-11 justify-start text-left font-normal",
+                      "w-full h-11 justify-start text-left font-normal text-black",
                       !joinDate && "text-muted-foreground"
                     )}
                   >
