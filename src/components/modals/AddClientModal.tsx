@@ -22,7 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, Building, User, MapPin, FileText, BarChart3, DollarSign, Calendar, CreditCard, Clock, AlertCircle } from 'lucide-react';
+import { Loader2, Building, User, MapPin, FileText, BarChart3, DollarSign, Calendar, CreditCard } from 'lucide-react';
 import { requests } from '@/lib/urls';
 import axiosInstance from '@/axios/axios';
 import { toast } from 'sonner';
@@ -61,11 +61,6 @@ interface Client {
   current_month_payment_status: string;
   last_payment_date: string;
   monthly_retainer: string;
-  // New Payment Timing Fields
-  payment_timing: string;
-  early_payment_date: string;
-  early_payment_amount: string;
-  early_payment_notes: string;
   // Location and Business
   address: string;
   city: string;
@@ -85,8 +80,6 @@ interface Client {
   is_payment_overdue?: boolean;
   days_until_next_payment?: number;
   payment_status_display?: string;
-  is_early_payment?: boolean;
-  early_payment_days?: number;
 }
 
 interface AddClientModalProps {
@@ -108,7 +101,6 @@ const AddClientModal = ({
 }: AddClientModalProps) => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('basic');
-  const [showEarlyPaymentSection, setShowEarlyPaymentSection] = useState(false);
   const [formData, setFormData] = useState({
     // Basic Information
     client_name: '',
@@ -147,13 +139,6 @@ const AddClientModal = ({
     payment_date: 1,
     current_month_payment_status: 'pending',
     monthly_retainer: '',
-
-    // New Payment Timing Fields
-    payment_timing: 'on_time',
-    early_payment_date: '',
-    early_payment_amount: '',
-    early_payment_notes: '',
-
     // Location
     address: '',
     city: '',
@@ -212,11 +197,6 @@ const AddClientModal = ({
     { value: 'early_paid', label: 'Early Paid' }, // New status
   ];
 
-  const paymentTimingOptions = [
-    { value: 'early', label: 'Early' },
-    { value: 'on_time', label: 'On Time' },
-    { value: 'late', label: 'Late' },
-  ];
 
   // Generate payment dates (1-31)
   const paymentDates = Array.from({ length: 31 }, (_, i) => ({
@@ -257,10 +237,6 @@ const AddClientModal = ({
         payment_date: clientToEdit.payment_date || 1,
         current_month_payment_status: clientToEdit.current_month_payment_status || 'pending',
         monthly_retainer: clientToEdit.monthly_retainer || '',
-        payment_timing: clientToEdit.payment_timing || 'on_time',
-        early_payment_date: clientToEdit.early_payment_date || '',
-        early_payment_amount: clientToEdit.early_payment_amount || '',
-        early_payment_notes: clientToEdit.early_payment_notes || '',
         address: clientToEdit.address || '',
         city: clientToEdit.city || '',
         state: clientToEdit.state || '',
@@ -270,11 +246,6 @@ const AddClientModal = ({
         business_registration_number: clientToEdit.business_registration_number || '',
         tax_id: clientToEdit.tax_id || '',
       });
-
-      // Show early payment section if there's early payment data
-      if (clientToEdit.early_payment_date || clientToEdit.current_month_payment_status === 'early_paid') {
-        setShowEarlyPaymentSection(true);
-      }
     } else {
       setFormData({
         client_name: '',
@@ -302,21 +273,8 @@ const AddClientModal = ({
         payment_cycle: 'monthly',
         payment_date: 1,
         current_month_payment_status: 'pending',
-        monthly_retainer: '',
-        payment_timing: 'on_time',
-        early_payment_date: '',
-        early_payment_amount: '',
-        early_payment_notes: '',
-        address: '',
-        city: '',
-        state: '',
-        country: '',
-        postal_code: '',
-        website: '',
-        business_registration_number: '',
         tax_id: '',
       });
-      setShowEarlyPaymentSection(false);
     }
     setActiveTab('basic');
   }, [clientToEdit, mode, open]);
@@ -339,9 +297,6 @@ const AddClientModal = ({
     }
     if (!dataToSubmit.onboarding_date) {
       (dataToSubmit as any).onboarding_date = null; // Ensure this is also handled if optional
-    }
-    if (!dataToSubmit.early_payment_date) {
-      (dataToSubmit as any).early_payment_date = null;
     }
     if (!dataToSubmit.last_payment_date) {
       (dataToSubmit as any).last_payment_date = null;
@@ -378,15 +333,6 @@ const AddClientModal = ({
     }));
   };
 
-  const handleMarkEarlyPayment = () => {
-    if (!clientToEdit) return;
-    setLoading(true);
-    setTimeout(() => {
-      onClientUpdated();
-      onOpenChange(false);
-      setLoading(false);
-    }, 1000);
-  };
 
   const calculateTotalContent = () => {
     return formData.videos_per_month + formData.posters_per_month +
@@ -408,25 +354,6 @@ const AddClientModal = ({
     }
   };
 
-  const getPaymentTimingDescription = () => {
-    switch (formData.payment_timing) {
-      case 'early':
-        return 'Payment was made before due date';
-      case 'on_time':
-        return 'Payment was made on due date';
-      case 'late':
-        return 'Payment was made after due date';
-      default:
-        return '';
-    }
-  };
-
-  const isEarlyPaymentEligible = () => {
-    return mode === 'edit' &&
-      clientToEdit &&
-      clientToEdit.current_month_payment_status !== 'paid' &&
-      clientToEdit.current_month_payment_status !== 'early_paid';
-  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -887,159 +814,8 @@ const AddClientModal = ({
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="payment_timing">Payment Timing</Label>
-                      <Select
-                        value={formData.payment_timing}
-                        onValueChange={(value) => handleInputChange('payment_timing', value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select payment timing" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {paymentTimingOptions.map((timing) => (
-                            <SelectItem key={timing.value} value={timing.value}>
-                              {timing.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        {getPaymentTimingDescription()}
-                      </p>
-                    </div>
                   </div>
 
-                  <Separator />
-
-                  {/* Early Payment Section */}
-                  {mode === 'edit' && (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="font-medium text-sm">Early Payment Management</h4>
-                        <Button
-                          type="button"
-                          variant={showEarlyPaymentSection ? "outline" : "secondary"}
-                          size="sm"
-                          onClick={() => setShowEarlyPaymentSection(!showEarlyPaymentSection)}
-                        >
-                          <Clock className="h-4 w-4 mr-2" />
-                          {showEarlyPaymentSection ? 'Hide' : 'Record Early Payment'}
-                        </Button>
-                      </div>
-
-                      {showEarlyPaymentSection && (
-                        <Card className="bg-muted/50">
-                          <CardContent className="pt-6 space-y-4">
-                            {isEarlyPaymentEligible() ? (
-                              <>
-                                <div className="flex items-center gap-2 text-sm text-blue-600">
-                                  <AlertCircle className="h-4 w-4" />
-                                  <span>Record an early payment for this client</span>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div className="space-y-2">
-                                    <Label htmlFor="early_payment_date">Early Payment Date</Label>
-                                    <Input
-                                      id="early_payment_date"
-                                      type="date"
-                                      value={formData.early_payment_date}
-                                      onChange={(e) => handleInputChange('early_payment_date', e.target.value)}
-                                    />
-                                  </div>
-
-                                  <div className="space-y-2">
-                                    <Label htmlFor="early_payment_amount">Early Payment Amount</Label>
-                                    <Input
-                                      id="early_payment_amount"
-                                      type="number"
-                                      step="0.01"
-                                      min="0"
-                                      placeholder="0.00"
-                                      value={formData.early_payment_amount}
-                                      onChange={(e) => handleInputChange('early_payment_amount', e.target.value)}
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                  <Label htmlFor="early_payment_notes">Early Payment Notes</Label>
-                                  <Textarea
-                                    id="early_payment_notes"
-                                    placeholder="Add any notes about this early payment..."
-                                    rows={2}
-                                    value={formData.early_payment_notes}
-                                    onChange={(e) => handleInputChange('early_payment_notes', e.target.value)}
-                                  />
-                                </div>
-
-                                <div className="flex gap-2 pt-2">
-                                  <Button
-                                    type="button"
-                                    onClick={handleMarkEarlyPayment}
-                                    disabled={loading}
-                                    className="flex-1"
-                                  >
-                                    {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-                                    Mark as Early Paid
-                                  </Button>
-                                </div>
-                              </>
-                            ) : (
-                              <div className="text-center py-4">
-                                <Clock className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                                <p className="text-sm text-muted-foreground">
-                                  {clientToEdit?.current_month_payment_status === 'paid' ||
-                                    clientToEdit?.current_month_payment_status === 'early_paid'
-                                    ? 'Payment has already been marked as paid for this month.'
-                                    : 'Client payment status cannot be updated to early paid.'}
-                                </p>
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      )}
-
-                      {/* Payment Timeline Information */}
-                      {clientToEdit && (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4" />
-                              <span className="font-medium">Next Payment:</span>
-                              <span>{clientToEdit.next_payment_date ? new Date(clientToEdit.next_payment_date).toLocaleDateString() : 'Not set'}</span>
-                            </div>
-                            {clientToEdit.last_payment_date && (
-                              <div className="flex items-center gap-2">
-                                <Calendar className="h-4 w-4" />
-                                <span className="font-medium">Last Payment:</span>
-                                <span>{new Date(clientToEdit.last_payment_date).toLocaleDateString()}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="space-y-2">
-                            {clientToEdit.early_payment_date && (
-                              <div className="flex items-center gap-2">
-                                <Clock className="h-4 w-4 text-green-600" />
-                                <span className="font-medium">Early Payment:</span>
-                                <span>{new Date(clientToEdit.early_payment_date).toLocaleDateString()}</span>
-                              </div>
-                            )}
-                            {clientToEdit.is_early_payment && clientToEdit.early_payment_days && (
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">Days Early:</span>
-                                <Badge variant="outline" className="bg-green-50 text-green-700">
-                                  {clientToEdit.early_payment_days} days
-                                </Badge>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             </TabsContent>

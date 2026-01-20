@@ -27,7 +27,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { format } from 'date-fns';
-import { CalendarIcon, Loader2, Clock, MapPin, User } from 'lucide-react';
+import { CalendarIcon, Loader2, Clock, MapPin, User, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 
@@ -48,6 +48,7 @@ interface AddEventModalProps {
   onOpenChange: (open: boolean) => void;
   onEventCreated?: () => void;
   onEventUpdated?: () => void;
+  onEventDeleted?: () => void;
   eventToEdit?: any;
   mode?: 'add' | 'edit';
   defaultDate?: Date;
@@ -58,6 +59,7 @@ const AddEventModal = ({
   onOpenChange,
   onEventCreated,
   onEventUpdated,
+  onEventDeleted,
   eventToEdit,
   mode = 'add',
   defaultDate
@@ -283,6 +285,34 @@ const AddEventModal = ({
         title: 'Error',
         description: errorMessage || error.message || 'Failed to save event',
         variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!eventToEdit) return;
+
+    if (!confirm('Are you sure you want to delete this event?')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await axiosInstance.delete(requests.EventDelete(eventToEdit.id));
+      toast({
+        title: 'Success',
+        description: 'Event deleted successfully',
+      });
+      if (onEventDeleted) onEventDeleted();
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error("Error deleting event:", error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete event',
+        variant: 'destructive',
       });
     } finally {
       setLoading(false);
@@ -555,16 +585,30 @@ const AddEventModal = ({
             </div>
           </div>
 
-          <DialogFooter className="flex flex-col sm:flex-row gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={handleClose}
-              className="w-full sm:w-auto"
-              disabled={loading}
-            >
-              Cancel
-            </Button>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2 justify-between">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleClose}
+                className="w-full sm:w-auto"
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+              {mode === 'edit' && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={handleDelete}
+                  className="w-full sm:w-auto"
+                  disabled={loading}
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                  Delete Event
+                </Button>
+              )}
+            </div>
             <Button
               type="submit"
               className="w-full sm:w-auto"

@@ -140,7 +140,6 @@ const Tasks = () => {
   const [activeTab, setActiveTab] = useState('list');
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
-  const [taskSource, setTaskSource] = useState<'all' | 'mine' | 'created'>('all');
   const { toast } = useToast();
 
   const fetchTasks = async () => {
@@ -148,8 +147,6 @@ const Tasks = () => {
     setError(null);
     try {
       let endpoint = requests.TaskList;
-      if (taskSource === 'mine') endpoint = requests.MyTasks;
-      else if (taskSource === 'created') endpoint = requests.TasksCreatedByMe;
 
       const response = await axiosInstance.get(endpoint);
       console.log("Tasks API Response:", response.data);
@@ -332,7 +329,7 @@ const Tasks = () => {
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, filterStatus, filterPriority, taskSource]);
+  }, [searchTerm, filterStatus, filterPriority]);
 
   const filteredTasks = tasks.filter(task => {
     const searchLower = searchTerm.toLowerCase();
@@ -453,32 +450,6 @@ const Tasks = () => {
           </div>
           {activeTab === 'list' && (
             <div className="flex items-center gap-2">
-              <div className="flex bg-muted p-1 rounded-lg mr-4">
-                <Button
-                  variant={taskSource === 'all' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setTaskSource('all')}
-                  className="text-xs"
-                >
-                  All Tasks
-                </Button>
-                <Button
-                  variant={taskSource === 'mine' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setTaskSource('mine')}
-                  className="text-xs"
-                >
-                  My Tasks
-                </Button>
-                <Button
-                  variant={taskSource === 'created' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setTaskSource('created')}
-                  className="text-xs"
-                >
-                  Created
-                </Button>
-              </div>
               <Button
                 className="flex items-center gap-2"
                 onClick={handleAddTask}

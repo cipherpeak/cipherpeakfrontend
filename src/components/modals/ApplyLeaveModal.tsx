@@ -48,7 +48,6 @@ export interface LeaveFormData {
   toDate: Date | undefined;
   totalDays: number;
   reason: string;
-  address_during_leave: string;
   attachment: File | null;
 }
 
@@ -70,7 +69,6 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
     toDate: undefined,
     totalDays: 0,
     reason: '',
-    address_during_leave: '',
     attachment: null,
   });
 
@@ -84,7 +82,6 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
         toDate: leaveToEdit.toDate ? new Date(leaveToEdit.toDate) : undefined,
         totalDays: parseFloat(leaveToEdit.totalDays) || 0,
         reason: leaveToEdit.reason || '',
-        address_during_leave: leaveToEdit.address_during_leave || '',
         attachment: null, // We typically don't set file input values from URL
       });
     } else if (mode === 'apply' && open) {
@@ -94,7 +91,6 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
         toDate: undefined,
         totalDays: 0,
         reason: '',
-        address_during_leave: '',
         attachment: null,
       });
     }
@@ -143,7 +139,6 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
       if (formData.toDate) data.append('end_date', format(formData.toDate, 'yyyy-MM-dd'));
       data.append('total_days', formData.totalDays.toString());
       data.append('reason', formData.reason);
-      data.append('address_during_leave', formData.address_during_leave);
       if (formData.attachment) {
         data.append('attachment', formData.attachment);
       }
@@ -179,7 +174,6 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
         toDate: undefined,
         totalDays: 0,
         reason: '',
-        address_during_leave: '',
         attachment: null,
       });
       onOpenChange(false);
@@ -331,18 +325,6 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
               />
             </div>
 
-            {/* Address During Leave */}
-            <div className="grid gap-2">
-              <Label htmlFor="address_during_leave" className="text-sm font-medium">
-                Address During Leave
-              </Label>
-              <Input
-                id="address_during_leave"
-                placeholder="Where can we contact you if needed?"
-                value={formData.address_during_leave}
-                onChange={(e) => setFormData(prev => ({ ...prev, address_during_leave: e.target.value }))}
-              />
-            </div>
 
             {/* Attach Media */}
             <div className="grid gap-2">

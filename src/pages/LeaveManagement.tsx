@@ -37,7 +37,7 @@ import axiosInstance from '@/axios/axios';
 import { useToast } from '@/components/ui/use-toast';
 import { cn } from '@/lib/utils';
 import { useSelector } from 'react-redux';
-import { RootState } from '@/Redux/store';
+import { RootState } from '@/Redux/Store';
 
 // Types
 interface LeaveRequest {
@@ -49,7 +49,6 @@ interface LeaveRequest {
   toDate: string;
   totalDays: number;
   reason: string;
-  address_during_leave: string;
   status: 'pending' | 'approved' | 'rejected';
   appliedDate: string;
   attachment?: string;
@@ -88,8 +87,8 @@ const LeaveManagement = () => {
 
       const formattedLeaves: LeaveRequest[] = leaves.map((leave: any) => ({
         id: leave.id,
-        employeeName: leave.employee_name || 'N/A',
-        employeeId: leave.employee_id?.toString() || 'N/A',
+        employeeName: leave.employee_name || (leave.employee_details ? `${leave.employee_details.first_name} ${leave.employee_details.last_name}` : 'N/A'),
+        employeeId: leave.employee_details?.employee_id || leave.employee_id?.toString() || 'N/A',
         category: leave.category || 'Annual Leave',
         fromDate: leave.start_date,
         toDate: leave.end_date,
@@ -100,7 +99,6 @@ const LeaveManagement = () => {
         reviewedBy: leave.approved_by_name,
         reviewDate: leave.approved_at,
         comments: leave.remarks,
-        address_during_leave: leave.address_during_leave || '',
         attachment: leave.attachment
       }));
 
@@ -125,8 +123,8 @@ const LeaveManagement = () => {
 
       const formattedLeaves: LeaveRequest[] = leaves.map((leave: any) => ({
         id: leave.id,
-        employeeName: leave.employee_name || 'N/A',
-        employeeId: leave.employee_id?.toString() || 'N/A',
+        employeeName: leave.employee_name || (leave.employee_details ? `${leave.employee_details.first_name} ${leave.employee_details.last_name}` : 'N/A'),
+        employeeId: leave.employee_details?.employee_id || leave.employee_id?.toString() || 'N/A',
         category: leave.category || 'Annual Leave',
         fromDate: leave.start_date,
         toDate: leave.end_date,
@@ -137,7 +135,6 @@ const LeaveManagement = () => {
         reviewedBy: leave.approved_by_name,
         reviewDate: leave.approved_at,
         comments: leave.remarks,
-        address_during_leave: leave.address_during_leave || '',
         attachment: leave.attachment
       }));
       setAllLeaves(formattedLeaves);

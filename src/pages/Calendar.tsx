@@ -269,6 +269,7 @@ const Calendar = () => {
         mode={modalMode}
         onEventCreated={fetchData}
         onEventUpdated={fetchData}
+        onEventDeleted={fetchData}
         eventToEdit={eventToEdit}
         defaultDate={selectedDate || undefined}
       />

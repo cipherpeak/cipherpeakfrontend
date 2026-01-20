@@ -35,7 +35,7 @@ interface LeaveRequest {
     toDate: string;
     totalDays: number;
     reason: string;
-    address_during_leave: string;
+    reason: string;
     status: 'pending' | 'approved' | 'rejected';
     appliedDate: string;
     attachment?: string;
@@ -178,12 +178,6 @@ const LeaveDetailsModal = ({
                             </div>
                         </div>
 
-                        <div className="space-y-1">
-                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Address During Leave</Label>
-                            <div className="p-2 bg-muted/50 rounded-md">
-                                <span className="text-sm">{leave.address_during_leave || 'N/A'}</span>
-                            </div>
-                        </div>
                     </div>
 
                     <div className="space-y-4">
