@@ -59,7 +59,7 @@ export const requests = {
     PaymentDetail: (id: number) => `auth/payments/${id}/`,
 
     // Verification API
-    VerificationList: 'api/verifications/',
+    VerificationList: 'api/pending-clients/',
     VerificationCreate: 'api/verifications/',
     VerificationDetail: (id: number) => `api/verifications/${id}/`,
     VerificationByClientMonth: 'api/verifications/by-client-month/',

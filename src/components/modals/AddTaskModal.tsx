@@ -161,37 +161,40 @@ const AddTaskModal = ({
     }
   };
 
-  // Initialize form when modal opens or taskToEdit changes
+  // Fetch employees and clients when modal opens
   useEffect(() => {
     if (open) {
       if (employees.length === 0) fetchEmployees();
       if (clients.length === 0) fetchClients();
-
-      if (mode === 'edit' && taskToEdit) {
-        // Pre-fill form with task data for editing
-        setFormData({
-          title: taskToEdit.title || '',
-          description: taskToEdit.description || '',
-          assignee: taskToEdit.assignee?.toString() || taskToEdit.assignee_details?.id?.toString() || '',
-          client: taskToEdit.client?.toString() || taskToEdit.client_details?.id?.toString() || '',
-          priority: taskToEdit.priority || 'medium',
-          status: taskToEdit.status || 'pending',
-          task_type: taskToEdit.task_type || '',
-        });
-
-        if (taskToEdit.due_date) {
-          setDueDate(new Date(taskToEdit.due_date));
-        }
-
-        if (taskToEdit.scheduled_date) {
-          setScheduledDate(new Date(taskToEdit.scheduled_date));
-        }
-      } else {
-        // Reset form for new task (handled by resetForm too, but explicit here is safe)
-        resetForm();
-      }
     }
-  }, [open, mode, taskToEdit]);
+  }, [open]);
+
+  // Populate form data when in edit mode and data is available
+  useEffect(() => {
+    if (open && mode === 'edit' && taskToEdit && employees.length > 0 && clients.length > 0) {
+      // Pre-fill form with task data for editing - only after employees and clients are loaded
+      setFormData({
+        title: taskToEdit.title || '',
+        description: taskToEdit.description || '',
+        assignee: taskToEdit.assignee?.toString() || taskToEdit.assignee_details?.id?.toString() || '',
+        client: taskToEdit.client?.toString() || taskToEdit.client_details?.id?.toString() || '',
+        priority: taskToEdit.priority || 'medium',
+        status: taskToEdit.status || 'pending',
+        task_type: taskToEdit.task_type || '',
+      });
+
+      if (taskToEdit.due_date) {
+        setDueDate(new Date(taskToEdit.due_date));
+      }
+
+      if (taskToEdit.scheduled_date) {
+        setScheduledDate(new Date(taskToEdit.scheduled_date));
+      }
+    } else if (open && mode === 'add') {
+      // Reset form for new task
+      resetForm();
+    }
+  }, [open, mode, taskToEdit, employees, clients]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

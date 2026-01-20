@@ -22,6 +22,7 @@ import PrivateRoute from "./lib/PrivateRoute";
 import Dolla from "./pages/Dolla";
 import LeaveManagement from "./pages/LeaveManagement";
 import Verification from "./pages/Verification";
+import ClientDetails from "./pages/ClientDetails";
 import Reports from "./pages/Reports";
 import ClientReportDetail from "./pages/ClientReportDetail";
 import EmployeeReportDetail from "./pages/EmployeeReportDetail";
@@ -110,6 +111,15 @@ const App = () => (
               element={
                 <PrivateRoute>
                   <Verification />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="client-details/:clientId"
+              element={
+                <PrivateRoute>
+                  <ClientDetails />
                 </PrivateRoute>
               }
             />
