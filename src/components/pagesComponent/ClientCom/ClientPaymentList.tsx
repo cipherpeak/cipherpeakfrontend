@@ -23,6 +23,7 @@ import { requests } from '@/lib/urls';
 import { toast } from 'sonner';
 import ProcessClientPaymentModal, { PaymentData } from '@/components/modals/ProcessClientPaymentModal';
 import PaymentDetailModal from '@/components/modals/PaymentDetailModal';
+import { cn } from '@/lib/utils';
 
 export interface ClientPayment {
     id: number;
@@ -124,61 +125,62 @@ const ClientPaymentList = ({ clientId, clientName, monthlyRetainer, onUpdate }: 
 
     return (
         <div className="space-y-6">
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-xl font-bold flex items-center gap-2">
-                        <IndianRupee className="h-5 w-5 text-primary" />
+            <Card className="shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between py-3 px-5 border-b">
+                    <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                        <IndianRupee className="h-4 w-4 text-primary" />
                         Usage & Payment History
                     </CardTitle>
-                    <Button onClick={() => setIsProcessModalOpen(true)}>
-                        <Plus className="h-4 w-4 mr-2" />
+                    <Button onClick={() => setIsProcessModalOpen(true)} size="sm" className="h-8">
+                        <Plus className="h-3.5 w-3.5 mr-1" />
                         Process Payment
                     </Button>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-0">
                     {loading ? (
                         <div className="flex justify-center py-8">
                             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                         </div>
                     ) : payments && payments.length > 0 ? (
-                        <div className="rounded-md border">
+                        <div className="overflow-x-auto">
                             <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>Period</TableHead>
-                                        <TableHead>Payment Date</TableHead>
-                                        <TableHead>Amount</TableHead>
-                                        <TableHead>Method</TableHead>
-                                        <TableHead>Status</TableHead>
-                                        <TableHead>Actions</TableHead>
+                                <TableHeader className="bg-muted/50">
+                                    <TableRow className="hover:bg-transparent">
+                                        <TableHead className="py-2 px-5 text-xs font-semibold">Period</TableHead>
+                                        <TableHead className="py-2 px-4 text-xs font-semibold">Payment Date</TableHead>
+                                        <TableHead className="py-2 px-4 text-xs font-semibold">Amount</TableHead>
+                                        <TableHead className="py-2 px-4 text-xs font-semibold">Method</TableHead>
+                                        <TableHead className="py-2 px-4 text-xs font-semibold">Status</TableHead>
+                                        <TableHead className="py-2 px-5 text-xs font-semibold text-right">Actions</TableHead>
                                     </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {payments.map((payment) => (
-                                        <TableRow key={payment.id}>
-                                            <TableCell className="font-medium">
+                                        <TableRow key={payment.id} className="hover:bg-muted/50 transition-colors">
+                                            <TableCell className="font-medium py-2.5 px-5 text-sm">
                                                 {getMonthName(payment.month)} {payment.year}
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="py-2.5 px-4 text-sm">
                                                 {formatDate(payment.payment_date)}
                                             </TableCell>
-                                            <TableCell>₹{payment.net_amount}</TableCell>
-                                            <TableCell className="capitalize">
+                                            <TableCell className="py-2.5 px-4 text-sm font-semibold">₹{payment.net_amount}</TableCell>
+                                            <TableCell className="capitalize py-2.5 px-4 text-sm">
                                                 {(payment.payment_method || '-').replace('_', ' ')}
                                             </TableCell>
-                                            <TableCell>
-                                                <Badge variant="outline" className={getStatusColor(payment.status)}>
+                                            <TableCell className="py-2.5 px-4">
+                                                <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0 h-4", getStatusColor(payment.status))}>
                                                     {payment.status_display}
                                                 </Badge>
                                             </TableCell>
-                                            <TableCell>
+                                            <TableCell className="py-2.5 px-5 text-right">
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
+                                                    className="h-7 w-7"
                                                     onClick={() => handleViewDetail(payment.id)}
                                                     title="View Details"
                                                 >
-                                                    <Eye className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                                                    <Eye className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
                                                 </Button>
                                             </TableCell>
                                         </TableRow>

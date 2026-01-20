@@ -146,7 +146,7 @@ const Clients = () => {
   // Mark payment as paid
   const handleMarkPaymentPaid = async (clientId: number) => {
     try {
-      await axiosInstance.post(requests.ClientPaymentProcess(clientId));
+      await axiosInstance.post(requests.ProcessClientPayment(clientId));
       setClients(prev => prev.map(c => c.id === clientId ? { ...c, current_month_payment_status: 'paid' } : c));
       toast.success('Payment marked as paid');
     } catch (err: any) {

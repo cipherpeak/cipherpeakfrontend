@@ -19,7 +19,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { Loader2, DollarSign, CreditCard, Landmark, Wallet, Receipt, Calculator } from 'lucide-react';
+import { Loader2, DollarSign, CreditCard, Landmark, Wallet, Receipt, Calculator, Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 export interface SalaryPaymentData {
     base_salary: string;
@@ -55,8 +59,10 @@ const ProcessSalaryModal = ({
         deductions: '0',
         payment_method: 'bank_transfer',
         remarks: '',
-        payment_date: preSelectedDate ? preSelectedDate.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        payment_date: preSelectedDate ? format(preSelectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
     });
+
+    const [date, setDate] = useState<Date | undefined>(preSelectedDate || new Date());
 
     const [netAmount, setNetAmount] = useState<number>(0);
 
@@ -68,9 +74,10 @@ const ProcessSalaryModal = ({
 
     useEffect(() => {
         if (preSelectedDate) {
-            setFormData(prev => ({ 
-                ...prev, 
-                payment_date: preSelectedDate.toISOString().split('T')[0] 
+            setDate(preSelectedDate);
+            setFormData(prev => ({
+                ...prev,
+                payment_date: format(preSelectedDate, 'yyyy-MM-dd')
             }));
         }
     }, [preSelectedDate]);
@@ -89,6 +96,13 @@ const ProcessSalaryModal = ({
 
     const handleInputChange = (field: keyof SalaryPaymentData, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
+    };
+
+    const handleDateSelect = (selectedDate: Date | undefined) => {
+        setDate(selectedDate);
+        if (selectedDate) {
+            handleInputChange('payment_date', format(selectedDate, 'yyyy-MM-dd'));
+        }
     };
 
     const paymentMethods = [
@@ -149,14 +163,28 @@ const ProcessSalaryModal = ({
                         </div>
                         <div className="space-y-1.5">
                             <Label htmlFor="payment_date" className="text-xs">Payment Date *</Label>
-                            <Input
-                                id="payment_date"
-                                type="date"
-                                className="h-9"
-                                value={formData.payment_date}
-                                onChange={(e) => handleInputChange('payment_date', e.target.value)}
-                                required
-                            />
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                            "w-full justify-start text-left font-normal h-9",
+                                            !date && "text-muted-foreground"
+                                        )}
+                                    >
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {date ? format(date, "PPP") : <span className="text-sm">Pick a date</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar
+                                        mode="single"
+                                        selected={date}
+                                        onSelect={handleDateSelect}
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
                         </div>
                     </div>
 
