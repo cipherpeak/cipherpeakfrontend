@@ -47,7 +47,8 @@ import {
   X
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { STATIC_FINANCE_DATA } from '@/lib/staticCalendarData';
+import axiosInstance from '@/axios/axios';
+import { requests } from '@/lib/urls';
 
 
 
@@ -72,7 +73,7 @@ interface Income {
   type_display: string;
   amount: string;
   formatted_amount: string;
-  category: number;
+  category: string; // Changed from number to string to match serializer
   category_name: string;
   date: string;
   client_name?: string;
@@ -100,7 +101,7 @@ interface Expense {
   type_display: string;
   amount: string;
   formatted_amount: string;
-  category: number;
+  category: string; // Changed from number to string to match serializer
   category_name: string;
   date: string;
   vendor_name?: string;
@@ -168,11 +169,11 @@ const Dolla: React.FC = () => {
   const [incomeCategories, setIncomeCategories] = useState<IncomeCategory[]>([]);
   const [expenseCategories, setExpenseCategories] = useState<ExpenseCategory[]>([]);
   const [financeStats, setFinanceStats] = useState<FinanceStats | null>({
-    total_income: STATIC_FINANCE_DATA.stats.total_income,
-    total_expense: STATIC_FINANCE_DATA.stats.total_expenses,
-    net_balance: STATIC_FINANCE_DATA.stats.net_profit,
-    income_count: STATIC_FINANCE_DATA.incomes.length,
-    expense_count: STATIC_FINANCE_DATA.expenses.length,
+    total_income: 0,
+    total_expense: 0,
+    net_balance: 0,
+    income_count: 0,
+    expense_count: 0,
     income_by_type: [],
     expense_by_type: [],
     income_by_category: [],
@@ -219,9 +220,9 @@ const Dolla: React.FC = () => {
     payment_status: 'completed'
   });
 
-  // Common income types
+  // Common income types - matched with backend exclusions
   const incomeTypes = [
-    'client_payment',
+    // 'client_payment', // Reserved for system use
     'consulting_fee',
     'product_sale',
     'subscription_revenue',
@@ -264,98 +265,95 @@ const Dolla: React.FC = () => {
   // API Functions
   const fetchIncomes = async () => {
     setIncomeLoading(true);
-    setTimeout(() => {
-      setIncomes(STATIC_FINANCE_DATA.incomes.map(i => ({
-        ...i,
-        type: 'client_payment',
-        type_display: 'Client Payment',
-        formatted_amount: `$${i.amount}`,
-        category_name: i.category,
-        payment_method_display: i.payment_method,
-        payment_status: 'completed',
-        payment_status_display: 'Completed',
-        created_by_name: 'Admin'
-      } as any)));
+    try {
+      const response = await axiosInstance.get(requests.IncomeListCreate);
+      setIncomes(response.data);
+    } catch (error) {
+      console.error('Error fetching incomes:', error);
+      setError('Failed to fetch income records');
+    } finally {
       setIncomeLoading(false);
-    }, 500);
+    }
   };
 
   const fetchExpenses = async () => {
     setExpenseLoading(true);
-    setTimeout(() => {
-      setExpenses(STATIC_FINANCE_DATA.expenses.map(e => ({
-        ...e,
-        type: 'software_subscription',
-        type_display: 'Software Subscription',
-        formatted_amount: `$${e.amount}`,
-        category_name: e.category,
-        payment_method_display: e.payment_method || 'Bank Transfer',
-        payment_status: 'completed',
-        payment_status_display: 'Completed',
-        created_by_name: 'Admin'
-      } as any)));
+    try {
+      const response = await axiosInstance.get(requests.ExpenseListCreate);
+      setExpenses(response.data);
+    } catch (error) {
+      console.error('Error fetching expenses:', error);
+      setError('Failed to fetch expense records');
+    } finally {
       setExpenseLoading(false);
-    }, 500);
+    }
   };
 
   const fetchIncomeCategories = async () => {
-    setIncomeCategories(STATIC_FINANCE_DATA.categories.income.map((c, i) => ({ id: i, name: c, description: c, is_active: true })));
+    try {
+      const response = await axiosInstance.get(requests.IncomeCategoryList);
+      setIncomeCategories(response.data);
+    } catch (error) {
+      console.error('Error fetching income categories:', error);
+    }
   };
 
   const fetchExpenseCategories = async () => {
-    setExpenseCategories(STATIC_FINANCE_DATA.categories.expense.map((c, i) => ({ id: i, name: c, description: c, is_active: true })));
+    try {
+      const response = await axiosInstance.get(requests.ExpenseCategoryList);
+      setExpenseCategories(response.data);
+    } catch (error) {
+      console.error('Error fetching expense categories:', error);
+    }
   };
 
   const fetchFinanceStats = async () => {
     setStatsLoading(true);
-    setTimeout(() => {
+    try {
+      const response = await axiosInstance.get(requests.FinanceStats);
+      setFinanceStats(response.data);
+    } catch (error) {
+      console.error('Error fetching finance stats:', error);
+    } finally {
       setStatsLoading(false);
-    }, 300);
+    }
   };
 
 
-  const handleAddIncome = () => {
+  const handleAddIncome = async () => {
     setLoading(true);
-    setTimeout(() => {
-      const newIncome: Income = {
-        id: editingIncome ? editingIncome.id : Math.floor(Math.random() * 10000),
-        type: incomeForm.type,
-        type_display: incomeForm.type.replace('_', ' '),
-        amount: incomeForm.amount,
-        formatted_amount: `$${incomeForm.amount}`,
-        category: parseInt(incomeForm.category),
-        category_name: incomeCategories.find(c => c.id === parseInt(incomeForm.category))?.name || 'Other',
+    try {
+      const payload = {
+        ...incomeForm,
         date: format(new Date(), 'yyyy-MM-dd'),
-        client_name: incomeForm.client_name,
-        remarks: incomeForm.remarks,
-        payment_method: incomeForm.payment_method,
-        payment_method_display: paymentMethods.find(m => m.value === incomeForm.payment_method)?.label || 'Other',
-        payment_status: incomeForm.payment_status,
-        payment_status_display: paymentStatuses.find(s => s.value === incomeForm.payment_status)?.label || 'Completed',
-        created_by_name: 'Admin',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      } as any;
+        gst_amount: 0,
+        gst_rate: 0,
+        total_amount: incomeForm.amount
+      };
 
-      if (editingIncome) {
-        setIncomes(prev => prev.map(i => i.id === editingIncome.id ? newIncome : i));
-      } else {
-        setIncomes(prev => [newIncome, ...prev]);
-      }
+      await axiosInstance.post(requests.IncomeListCreate, payload);
+
+      fetchIncomes();
+      fetchFinanceStats();
+      fetchIncomeCategories(); // Refresh categories in case a new one was created
 
       resetIncomeForm();
       setIncomeDialogOpen(false);
+    } catch (error) {
+      console.error('Error adding income:', error);
+      setError('Failed to add income record');
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
   const handleEditIncome = (income: Income) => {
     setEditingIncome(income);
     setIncomeForm({
       type: income.type,
-      amount: income.amount,
+      amount: income.amount.toString(),
       remarks: income.remarks,
-      category: income.category.toString(),
+      category: income.category, // It's already the category name/string from API
       client_name: income.client_name || '',
       client_email: income.client_email || '',
       client_phone: income.client_phone || '',
@@ -365,12 +363,40 @@ const Dolla: React.FC = () => {
     setIncomeDialogOpen(true);
   };
 
-  const handleDeleteIncome = (id: number) => {
+  const handleUpdateIncome = async () => {
+    if (!editingIncome) return;
+
+    setLoading(true);
+    try {
+      await axiosInstance.put(requests.IncomeDetail(editingIncome.id), incomeForm);
+
+      fetchIncomes();
+      fetchFinanceStats();
+      fetchIncomeCategories();
+
+      resetIncomeForm();
+      setIncomeDialogOpen(false);
+    } catch (error) {
+      console.error('Error updating income:', error);
+      setError('Failed to update income record');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteIncome = async (id: number) => {
     if (!confirm('Are you sure you want to delete this income record?')) {
       return;
     }
 
-    setIncomes(prev => prev.filter(i => i.id !== id));
+    try {
+      await axiosInstance.delete(requests.IncomeDetail(id));
+      fetchIncomes();
+      fetchFinanceStats();
+    } catch (error) {
+      console.error('Error deleting income:', error);
+      setError('Failed to delete income record');
+    }
   };
 
   const resetIncomeForm = () => {
@@ -389,48 +415,37 @@ const Dolla: React.FC = () => {
   };
 
   // Handlers for Expense
-  const handleAddExpense = () => {
+  const handleAddExpense = async () => {
     setLoading(true);
-    setTimeout(() => {
-      const newExpense: Expense = {
-        id: editingExpense ? editingExpense.id : Math.floor(Math.random() * 10000),
-        type: expenseForm.type,
-        type_display: expenseForm.type.replace('_', ' '),
-        amount: expenseForm.amount,
-        formatted_amount: `$${expenseForm.amount}`,
-        category: parseInt(expenseForm.category),
-        category_name: expenseCategories.find(c => c.id === parseInt(expenseForm.category))?.name || 'Other',
+    try {
+      const payload = {
+        ...expenseForm,
         date: format(new Date(), 'yyyy-MM-dd'),
-        vendor_name: expenseForm.vendor_name,
-        remarks: expenseForm.remarks,
-        payment_method: expenseForm.payment_method,
-        payment_method_display: paymentMethods.find(m => m.value === expenseForm.payment_method)?.label || 'Other',
-        payment_status: expenseForm.payment_status,
-        payment_status_display: paymentStatuses.find(s => s.value === expenseForm.payment_status)?.label || 'Completed',
-        created_by_name: 'Admin',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      } as any;
+      };
 
-      if (editingExpense) {
-        setExpenses(prev => prev.map(e => e.id === editingExpense.id ? newExpense : e));
-      } else {
-        setExpenses(prev => [newExpense, ...prev]);
-      }
+      await axiosInstance.post(requests.ExpenseListCreate, payload);
+
+      fetchExpenses();
+      fetchFinanceStats();
+      fetchExpenseCategories();
 
       resetExpenseForm();
       setExpenseDialogOpen(false);
+    } catch (error) {
+      console.error('Error adding expense:', error);
+      setError('Failed to add expense record');
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
   const handleEditExpense = (expense: Expense) => {
     setEditingExpense(expense);
     setExpenseForm({
       type: expense.type,
-      amount: expense.amount,
+      amount: expense.amount.toString(),
       remarks: expense.remarks,
-      category: expense.category.toString(),
+      category: expense.category,
       vendor_name: expense.vendor_name || '',
       vendor_contact: expense.vendor_contact || '',
       vendor_email: expense.vendor_email || '',
@@ -441,11 +456,40 @@ const Dolla: React.FC = () => {
     setExpenseDialogOpen(true);
   };
 
-  const handleDeleteExpense = (id: number) => {
+  const handleUpdateExpense = async () => {
+    if (!editingExpense) return;
+
+    setLoading(true);
+    try {
+      await axiosInstance.put(requests.ExpenseDetail(editingExpense.id), expenseForm);
+
+      fetchExpenses();
+      fetchFinanceStats();
+      fetchExpenseCategories();
+
+      resetExpenseForm();
+      setExpenseDialogOpen(false);
+    } catch (error) {
+      console.error('Error updating expense:', error);
+      setError('Failed to update expense record');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteExpense = async (id: number) => {
     if (!confirm('Are you sure you want to delete this expense record?')) {
       return;
     }
-    setExpenses(prev => prev.filter(e => e.id !== id));
+
+    try {
+      await axiosInstance.delete(requests.ExpenseDetail(id));
+      fetchExpenses();
+      fetchFinanceStats();
+    } catch (error) {
+      console.error('Error deleting expense:', error);
+      setError('Failed to delete expense record');
+    }
   };
 
   const resetExpenseForm = () => {
@@ -945,21 +989,18 @@ const Dolla: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="income-category">Category *</Label>
-                <Select
+                <Input
+                  id="income-category"
+                  list="income-categories-list"
+                  placeholder="Select or type category"
                   value={incomeForm.category}
-                  onValueChange={(value) => setIncomeForm({ ...incomeForm, category: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {incomeCategories.map(cat => (
-                      <SelectItem key={cat.id} value={cat.id.toString()}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onChange={(e) => setIncomeForm({ ...incomeForm, category: e.target.value })}
+                />
+                <datalist id="income-categories-list">
+                  {incomeCategories.map(cat => (
+                    <option key={cat.id} value={cat.name} />
+                  ))}
+                </datalist>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="client-name">Client Name</Label>
@@ -1031,7 +1072,7 @@ const Dolla: React.FC = () => {
               Cancel
             </Button>
             <Button
-              onClick={handleAddIncome}
+              onClick={editingIncome ? handleUpdateIncome : handleAddIncome}
               disabled={!incomeForm.type || !incomeForm.amount || !incomeForm.category || loading}
             >
               {loading ? (
@@ -1091,21 +1132,18 @@ const Dolla: React.FC = () => {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="expense-category">Category *</Label>
-                <Select
+                <Input
+                  id="expense-category"
+                  list="expense-categories-list"
+                  placeholder="Select or type category"
                   value={expenseForm.category}
-                  onValueChange={(value) => setExpenseForm({ ...expenseForm, category: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {expenseCategories.map(cat => (
-                      <SelectItem key={cat.id} value={cat.id.toString()}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
+                />
+                <datalist id="expense-categories-list">
+                  {expenseCategories.map(cat => (
+                    <option key={cat.id} value={cat.name} />
+                  ))}
+                </datalist>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="vendor">Vendor Name</Label>
@@ -1177,7 +1215,7 @@ const Dolla: React.FC = () => {
               Cancel
             </Button>
             <Button
-              onClick={handleAddExpense}
+              onClick={editingExpense ? handleUpdateExpense : handleAddExpense}
               disabled={!expenseForm.type || !expenseForm.amount || !expenseForm.category || loading}
             >
               {loading ? (

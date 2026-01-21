@@ -63,4 +63,22 @@ export const requests = {
     VerificationCreate: 'api/verifications/',
     VerificationDetail: (id: number) => `api/verifications/${id}/`,
     VerificationByClientMonth: 'api/verifications/by-client-month/',
+
+    // Finance API
+    IncomeListCreate: 'api/finance/incomes/',
+    IncomeDetail: (id: number) => `api/finance/incomes/${id}/`,
+    ExpenseListCreate: 'api/finance/expenses/',
+    ExpenseDetail: (id: number) => `api/finance/expenses/${id}/`,
+
+    IncomeCategoryList: 'api/finance/income-categories/',
+    IncomeCategoryDetail: (id: number) => `api/finance/income-categories/${id}/`,
+    ExpenseCategoryList: 'api/finance/expense-categories/',
+    ExpenseCategoryDetail: (id: number) => `api/finance/expense-categories/${id}/`,
+
+    FinanceStats: 'api/finance/stats/',
+    RecentTransactions: 'api/finance/recent-transactions/',
+    UpcomingRecurring: 'api/finance/upcoming-recurring/',
+    FinancialSummaries: 'api/finance/financial-summaries/',
+    GenerateSummary: 'api/finance/generate-summary/',
+    ExportFinancialData: 'api/finance/export-data/',
 };
