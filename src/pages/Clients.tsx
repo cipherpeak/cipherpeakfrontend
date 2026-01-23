@@ -25,7 +25,6 @@ import {
   MapPin,
   FileText,
   Eye,
-  IndianRupee,
   Contact,
   ArrowLeft,
   CreditCard,
@@ -59,10 +58,16 @@ interface Client {
   created_at?: string;
   updated_at?: string;
   next_payment_date?: string;
+  address?: string;
   city?: string;
   state?: string;
   country?: string;
-  owner_name?: string;
+  postal_code?: string;
+  is_active_client?: boolean;
+  payment_status_display?: string;
+  email?: string;
+  phone?: string;
+  company?: string;
 }
 
 interface ClientDetailsType extends Client {
@@ -297,6 +302,16 @@ const Clients = () => {
     ).join(' ');
   };
 
+  const getPaymentCycleDisplay = (cycle: string): string => {
+    switch (cycle) {
+      case 'monthly': return 'Monthly';
+      case 'quarterly': return 'Quarterly';
+      case 'yearly': return 'Yearly';
+      case 'custom': return 'Custom';
+      default: return cycle;
+    }
+  };
+
   const getIndustryColor = (industry: string) => {
     if (!industry) return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:border-gray-700';
 
@@ -311,39 +326,9 @@ const Clients = () => {
     return colors[hash % colors.length];
   };
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
   const getLocation = (client: Client): string => {
     const locationParts = [client.city, client.state, client.country].filter(Boolean);
     return locationParts.length > 0 ? locationParts.join(', ') : 'Location not specified';
-  };
-
-  const getContactPerson = (client: Client): string => {
-    return client.contact_person_name || client.owner_name || 'Contact not specified';
-  };
-
-  const getTotalContent = (client: Client): number => {
-    return (client.videos_per_month || 0) +
-      (client.posters_per_month || 0) +
-      (client.reels_per_month || 0) +
-      (client.stories_per_month || 0);
-  };
-
-  const getPaymentCycleDisplay = (cycle: string): string => {
-    switch (cycle) {
-      case 'monthly': return 'Monthly';
-      case 'quarterly': return 'Quarterly';
-      case 'yearly': return 'Yearly';
-      case 'custom': return 'Custom';
-      default: return cycle;
-    }
   };
 
   const getPaymentDateDisplay = (date: number): string => {
@@ -455,22 +440,18 @@ const Clients = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
               {filteredClients.map((client) => (
                 <Card key={client.id} className="group hover:shadow-lg transition-all duration-300 border-l-4 border-l-primary/50">
-                  <CardHeader className="pb-4">
+                  <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-1">
                         <Avatar className="h-12 w-12 ring-2 ring-primary/20 group-hover:ring-primary/40 transition-all">
                           <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground">
                             {getInitials(client.client_name)}
                           </AvatarFallback>
                         </Avatar>
-                        <div>
-                          <CardTitle className="text-lg group-hover:text-primary transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <CardTitle className="text-lg group-hover:text-primary transition-colors truncate">
                             {client.client_name || 'Unnamed Client'}
                           </CardTitle>
-                          <CardDescription className="flex items-center gap-1">
-                            <Contact className="h-3 w-3" />
-                            {getContactPerson(client)}
-                          </CardDescription>
                         </div>
                       </div>
                       <DropdownMenu>
@@ -484,7 +465,6 @@ const Clients = () => {
                             <Eye className="mr-2 h-4 w-4" />
                             View Details
                           </DropdownMenuItem>
-
                           <DropdownMenuItem
                             className="text-destructive"
                             onClick={() => handleDeleteClient(client.id)}
@@ -496,27 +476,50 @@ const Clients = () => {
                       </DropdownMenu>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
+                  <CardContent className="space-y-4">
+                    <div className="bg-muted/30 rounded-lg p-3 space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground flex items-center gap-1">
+                        <div className="text-xs font-medium text-muted-foreground flex items-center gap-1">
                           <Building className="h-3 w-3" />
                           Industry
-                        </span>
-                        <Badge variant="outline" className={getIndustryColor(client.industry)}>
-                          {client.industry || 'Not specified'}
+                        </div>
+                        <Badge variant="outline" className={`${getIndustryColor(client.industry)} text-[10px] px-2 py-0`}>
+                          {client.industry || 'N/A'}
                         </Badge>
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Status</span>
+                        <div className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          Location
+                        </div>
+                        <span className="text-xs font-medium truncate max-w-[150px]">{getLocation(client)}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+                          <CreditCard className="h-3 w-3" />
+                          Retention
+                        </div>
+                        <span className="text-xs font-bold text-green-600">
+                          {client.monthly_retainer ? `₹${parseFloat(client.monthly_retainer).toLocaleString('en-IN')}` : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Secondary Information */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">Status</span>
                         <Badge variant="outline" className={getStatusColor(client.status)}>
                           {formatStatus(client.status)}
                         </Badge>
                       </div>
 
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
                           <CreditCard className="h-3 w-3" />
                           Payment
                         </span>
@@ -525,54 +528,18 @@ const Clients = () => {
                         </Badge>
                       </div>
 
-                      <Separator />
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground flex items-center gap-1">
-                          <FileText className="h-3 w-3" />
-                          Content/Month
-                        </span>
-                        <span className="text-sm font-medium">{getTotalContent(client)}</span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground flex items-center gap-1">
-                          <IndianRupee className="h-3 w-3" />
-                          Monthly Retainer
-                        </span>
-                        <span className="text-sm font-medium text-green-600">
-                          {client.monthly_retainer ? `₹${client.monthly_retainer}` : 'Not set'}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground flex items-center gap-1">
-                          <CalendarDays className="h-3 w-3" />
-                          Next Payment
-                        </span>
-                        <span className="text-sm font-medium">
-                          {client.next_payment_date ? formatDate(client.next_payment_date) : 'Not set'}
-                        </span>
-                      </div>
-
-                      <div className="space-y-2 pt-2">
-                        {client.contact_email && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Mail className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                            <span className="text-muted-foreground truncate">{client.contact_email}</span>
-                          </div>
-                        )}
-                        {client.contact_phone && (
-                          <div className="flex items-center gap-2 text-sm">
-                            <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                            <span className="text-muted-foreground">{client.contact_phone}</span>
-                          </div>
-                        )}
-                        <div className="flex items-center gap-2 text-sm">
-                          <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                          <span className="text-muted-foreground">{getLocation(client)}</span>
+                      {client.contact_email && (
+                        <div className="flex items-center gap-2 text-xs pt-1">
+                          <Mail className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          <span className="text-muted-foreground truncate">{client.contact_email}</span>
                         </div>
-                      </div>
+                      )}
+                      {client.contact_phone && (
+                        <div className="flex items-center gap-2 text-xs">
+                          <Phone className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                          <span className="text-muted-foreground">{client.contact_phone}</span>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

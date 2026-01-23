@@ -81,4 +81,10 @@ export const requests = {
     FinancialSummaries: 'api/finance/financial-summaries/',
     GenerateSummary: 'api/finance/generate-summary/',
     ExportFinancialData: 'api/finance/export-data/',
+
+    // Reports API
+    MonthlyClientReport: 'api/reports/monthly/clients/',
+    MonthlyEmployeeReport: 'api/reports/monthly/employees/',
+    MonthlyIncomeReport: 'api/reports/monthly/income/',
+    MonthlyExpenseReport: 'api/reports/monthly/expense/',
 };

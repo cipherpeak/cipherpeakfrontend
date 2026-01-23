@@ -348,18 +348,24 @@ const Dolla: React.FC = () => {
   };
 
   const handleEditIncome = (income: Income) => {
+    console.log('Full income object:', income);
+    console.log('income.category:', income.category);
+    console.log('income.category_name:', income.category_name);
+
     setEditingIncome(income);
-    setIncomeForm({
-      type: income.type,
-      amount: income.amount.toString(),
-      remarks: income.remarks,
-      category: income.category, // It's already the category name/string from API
+    const formData = {
+      type: income.type || '',
+      amount: income.amount?.toString() || '',
+      remarks: income.remarks || '',
+      category: income.category || income.category_name || '',
       client_name: income.client_name || '',
       client_email: income.client_email || '',
       client_phone: income.client_phone || '',
-      payment_method: income.payment_method,
-      payment_status: income.payment_status
-    });
+      payment_method: income.payment_method || 'bank_transfer',
+      payment_status: income.payment_status || 'completed'
+    };
+    console.log('Setting income form with category:', formData.category);
+    setIncomeForm(formData);
     setIncomeDialogOpen(true);
   };
 
@@ -368,7 +374,15 @@ const Dolla: React.FC = () => {
 
     setLoading(true);
     try {
-      await axiosInstance.put(requests.IncomeDetail(editingIncome.id), incomeForm);
+      const payload = {
+        ...incomeForm,
+        date: editingIncome.date, // Include the original date
+        gst_amount: 0,
+        gst_rate: 0,
+        total_amount: incomeForm.amount
+      };
+
+      await axiosInstance.put(requests.IncomeDetail(editingIncome.id), payload);
 
       fetchIncomes();
       fetchFinanceStats();
@@ -442,16 +456,16 @@ const Dolla: React.FC = () => {
   const handleEditExpense = (expense: Expense) => {
     setEditingExpense(expense);
     setExpenseForm({
-      type: expense.type,
-      amount: expense.amount.toString(),
-      remarks: expense.remarks,
-      category: expense.category,
+      type: expense.type || '',
+      amount: expense.amount?.toString() || '',
+      remarks: expense.remarks || '',
+      category: expense.category || expense.category_name || '',
       vendor_name: expense.vendor_name || '',
       vendor_contact: expense.vendor_contact || '',
       vendor_email: expense.vendor_email || '',
       vendor_phone: expense.vendor_phone || '',
-      payment_method: expense.payment_method,
-      payment_status: expense.payment_status
+      payment_method: expense.payment_method || 'bank_transfer',
+      payment_status: expense.payment_status || 'completed'
     });
     setExpenseDialogOpen(true);
   };
@@ -811,6 +825,8 @@ const Dolla: React.FC = () => {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleEditIncome(income)}
+                                  disabled={income.type === 'client_payment'}
+                                  title={income.type === 'client_payment' ? 'Client Payments cannot be edited here' : 'Edit income'}
                                 >
                                   <Edit className="h-3 w-3" />
                                 </Button>
@@ -818,6 +834,8 @@ const Dolla: React.FC = () => {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleDeleteIncome(income.id)}
+                                  disabled={income.type === 'client_payment'}
+                                  title={income.type === 'client_payment' ? 'Client Payments cannot be deleted here' : 'Delete income'}
                                 >
                                   <Trash2 className="h-3 w-3" />
                                 </Button>
@@ -919,6 +937,8 @@ const Dolla: React.FC = () => {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleEditExpense(expense)}
+                                  disabled={expense.type === 'employee_salaries'}
+                                  title={expense.type === 'employee_salaries' ? 'Salary Payments cannot be edited here' : 'Edit expense'}
                                 >
                                   <Edit className="h-3 w-3" />
                                 </Button>
@@ -926,6 +946,8 @@ const Dolla: React.FC = () => {
                                   variant="outline"
                                   size="sm"
                                   onClick={() => handleDeleteExpense(expense.id)}
+                                  disabled={expense.type === 'employee_salaries'}
+                                  title={expense.type === 'employee_salaries' ? 'Salary Payments cannot be deleted here' : 'Delete expense'}
                                 >
                                   <Trash2 className="h-3 w-3" />
                                 </Button>
@@ -995,12 +1017,15 @@ const Dolla: React.FC = () => {
                   placeholder="Select or type category"
                   value={incomeForm.category}
                   onChange={(e) => setIncomeForm({ ...incomeForm, category: e.target.value })}
+                  key={editingIncome?.id || 'new'}
                 />
                 <datalist id="income-categories-list">
                   {incomeCategories.map(cat => (
                     <option key={cat.id} value={cat.name} />
                   ))}
                 </datalist>
+                {/* Debug: Show actual value */}
+                <p className="text-xs text-gray-500">Current value: "{incomeForm.category}"</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="client-name">Client Name</Label>
