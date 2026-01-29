@@ -30,7 +30,6 @@ import {
   BarChart3,
   DollarSign,
   ArrowLeft,
-  Download,
   TrendingUp,
   TrendingDown,
   Wallet,
@@ -38,6 +37,8 @@ import {
   Users,
   Mail,
   Phone,
+  Briefcase,
+  Clock,
   CreditCard,
   CalendarCheck,
   Zap,
@@ -46,6 +47,7 @@ import {
   Video
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { exportToPDF } from '@/lib/pdfExport';
 
 const Reports = () => {
   const [activeTab, setActiveTab] = useState('clients');
@@ -56,6 +58,7 @@ const Reports = () => {
   const [expenseData, setExpenseData] = useState<any[]>([]);
   const [selectedReport, setSelectedReport] = useState<any>(null);
   const [detailTab, setDetailTab] = useState('personal');
+  const [leavesData, setLeavesData] = useState<any[]>([]);
   const [incomeTotal, setIncomeTotal] = useState(0);
   const [expenseTotal, setExpenseTotal] = useState(0);
 
@@ -64,35 +67,6 @@ const Reports = () => {
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
 
   const navigate = useNavigate();
-
-  const exportToCSV = (data: any[], filename: string) => {
-    if (!data || data.length === 0) {
-      toast.error("No data to export");
-      return;
-    }
-
-    const headers = Object.keys(data[0]);
-    const csvRows = [
-      headers.join(','),
-      ...data.map(row =>
-        headers.map(fieldName => {
-          const value = row[fieldName];
-          // Handle complex types or escapes if necessary
-          return JSON.stringify(value === null || value === undefined ? '' : value);
-        }).join(',')
-      )
-    ];
-
-    const csvString = csvRows.join('\n');
-    const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `${filename}_${selectedMonth}_${selectedYear}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   const months = [
     { value: 1, label: 'January' },
@@ -109,27 +83,42 @@ const Reports = () => {
     { value: 12, label: 'December' },
   ];
 
-  const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
+  const years = Array.from({ length: now.getFullYear() - 2000 + 1 }, (_, i) => 2000 + i).reverse();
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
       const params = { month: selectedMonth, year: selectedYear };
-      if (activeTab === 'clients') {
+
+      // Determine what data types need to be fetched
+      const fetchClients = activeTab === 'clients' || (selectedReport && selectedReport.type === 'client');
+      const fetchEmployees = activeTab === 'employees' || (selectedReport && selectedReport.type === 'employee');
+      const fetchIncome = activeTab === 'income';
+      const fetchExpense = activeTab === 'expense';
+
+      if (fetchClients) {
         const response = await axiosInstance.get(requests.MonthlyClientReport, { params });
         const data = response.data.details || response.data || [];
-        console.log('Client data:', data);
+        console.log('Client data fetched:', data.length);
         setClientData(data);
-      } else if (activeTab === 'employees') {
+      }
+
+      if (fetchEmployees) {
         const response = await axiosInstance.get(requests.MonthlyEmployeeReport, { params });
-        const data = response.data.details || response.data || [];
-        console.log('Employee data:', data);
+        const data = response.data.details || [];
+        const leaves = response.data.leaves?.details || [];
+        console.log('Employee data fetched:', data.length);
         setEmployeeData(data);
-      } else if (activeTab === 'income') {
+        setLeavesData(leaves);
+      }
+
+      if (fetchIncome) {
         const response = await axiosInstance.get(requests.MonthlyIncomeReport, { params });
         setIncomeData(response.data.income?.details || []);
         setIncomeTotal(response.data.income?.total || 0);
-      } else if (activeTab === 'expense') {
+      }
+
+      if (fetchExpense) {
         const response = await axiosInstance.get(requests.MonthlyExpenseReport, { params });
         setExpenseData(response.data.expense?.details || []);
         setExpenseTotal(response.data.expense?.total || 0);
@@ -145,6 +134,48 @@ const Reports = () => {
   useEffect(() => {
     fetchData();
   }, [activeTab, selectedMonth, selectedYear]);
+
+  useEffect(() => {
+    if (selectedReport) {
+      const dataSet = selectedReport.type === 'client' ? clientData : employeeData;
+      const updated = dataSet.find(item => item.id === selectedReport.id);
+
+      if (updated) {
+        setSelectedReport({ ...updated, type: selectedReport.type, no_data: false });
+      } else {
+        // Only mark as no_data if we are not loading (avoid flicker)
+        if (!isLoading) {
+          setSelectedReport(prev => ({
+            ...prev,
+            base_salary: 0,
+            monthly_retainer: 0,
+            amount: 0,
+            tax: 0,
+            discount: 0,
+            net_paid: 0,
+            net_amount: 0,
+            incentives: 0,
+            deductions: 0,
+            tasks_completed: 0,
+            tasks_pending: 0,
+            verified_count_videos: 0,
+            verified_count_posters: 0,
+            leaves_count: 0,
+            content_requirements: {
+              videos: { actual: 0, target: 0 },
+              posters: { actual: 0, target: 0 },
+              reels: { actual: 0, target: 0 },
+              stories: { actual: 0, target: 0 }
+            },
+            payment_date: null,
+            status: 'NO_DATA',
+            remarks: '',
+            no_data: true
+          }));
+        }
+      }
+    }
+  }, [clientData, employeeData, isLoading]);
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -177,18 +208,42 @@ const Reports = () => {
             </SelectContent>
           </Select>
 
-          <Button
-            onClick={() => exportToCSV(
-              activeTab === 'clients' ? clientData :
-                activeTab === 'employees' ? employeeData :
-                  activeTab === 'income' ? incomeData : expenseData,
-              `Monthly_${activeTab}_Report`
-            )}
-            className="gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Download
-          </Button>
+          <div className="flex gap-1">
+            <Button
+              onClick={() => {
+                const dataToExport = (activeTab === 'clients' ? clientData :
+                  activeTab === 'employees' ? employeeData :
+                    activeTab === 'income' ? incomeData : expenseData).map(row => {
+                      const newRow = { ...row };
+                      // Format content requirements if they exist
+                      if (newRow.content_requirements) {
+                        const reqs = newRow.content_requirements;
+                        newRow.content_requirements = Object.entries(reqs)
+                          .map(([key, val]: [string, any]) => `${key.charAt(0).toUpperCase()}:${val.actual || 0}/${val.target || 0}`)
+                          .join(', ');
+                      }
+                      // Flatten employee details for PDF if they are missing at top level
+                      if (activeTab === 'employees') {
+                        newRow.email = newRow.email || newRow.employee_details?.email || newRow.employee_email;
+                        newRow.gender = newRow.gender || newRow.employee_details?.gender || newRow.employee_gender;
+                        newRow.phone = newRow.phone_number || newRow.employee_details?.phone_number || newRow.phone || newRow.employee_phone;
+                      }
+                      return newRow;
+                    });
+
+                exportToPDF(
+                  dataToExport,
+                  `Monthly_${activeTab}_Report`,
+                  `${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)} Monthly Report - ${months.find(m => m.value === selectedMonth)?.label} ${selectedYear}`
+                );
+              }}
+              className="gap-2"
+              variant="default"
+            >
+              <FileText className="h-4 w-4" />
+              PDF
+            </Button>
+          </div>
 
           <Button onClick={fetchData} variant="outline" size="icon" disabled={isLoading}>
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "↻"}
@@ -210,32 +265,55 @@ const Reports = () => {
               Back to Reports
             </Button>
 
-            <div className="flex gap-2">
+            <div className="flex gap-1">
               <Button
-                variant="outline"
-                onClick={() => exportToCSV([selectedReport], `Client_${selectedReport.client_name}_Details`)}
+                onClick={() => {
+                  const cleanedReport = { ...selectedReport };
+                  if (cleanedReport.content_requirements) {
+                    const reqs = cleanedReport.content_requirements;
+                    cleanedReport.content_requirements = Object.entries(reqs)
+                      .map(([key, val]: [string, any]) => `${key.charAt(0).toUpperCase()}:${val.actual || 0}/${val.target || 0}`)
+                      .join(', ');
+                  }
+                  exportToPDF([cleanedReport], `Client_${selectedReport.client_name}_Details`, `Client Report: ${selectedReport.client_name}`);
+                }}
                 className="gap-2"
+                variant="default"
               >
-                <Download className="h-4 w-4" />
-                Export Profile
+                <FileText className="h-4 w-4" />
+                PDF
               </Button>
-              <Badge variant="outline" className="px-4 py-1.5 bg-primary/5 text-primary border-primary/20 text-sm font-semibold">
-                {selectedReport?.industry || 'General Business'}
-              </Badge>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="flex items-center gap-3 mb-1">
+            <h2 className="text-3xl font-black tracking-tight text-slate-800 uppercase italic">
+              {selectedReport.type === 'employee' ? selectedReport.employee_name : selectedReport.client_name}
+            </h2>
+            {selectedReport.no_data && (
+              <Badge variant="destructive" className="font-black animate-pulse shadow-sm">
+                NO RECORD FOR {months.find(m => m.value === selectedMonth)?.label?.toUpperCase()} {selectedYear}
+              </Badge>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="bg-emerald-50/50 border-emerald-100 dark:bg-emerald-950/20">
               <CardContent className="p-6">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-sm font-medium text-emerald-600 mb-1">Monthly Retainer</p>
-                    <h3 className="text-2xl font-bold text-emerald-900 tracking-tight">₹{selectedReport.monthly_retainer?.toLocaleString() || '0'}</h3>
-                    <p className="text-xs text-emerald-600/70 mt-1">{selectedReport.payment_cycle || 'Monthly'}</p>
+                    <p className="text-sm font-medium text-emerald-600 mb-1">
+                      {selectedReport.type === 'employee' ? 'Base Salary' : 'Monthly Retainer'}
+                    </p>
+                    <h3 className="text-2xl font-bold text-emerald-900 tracking-tight">
+                      ₹{(selectedReport.type === 'employee' ? selectedReport.base_salary : selectedReport.monthly_retainer)?.toLocaleString() || '0'}
+                    </h3>
+                    <p className="text-xs text-emerald-600/70 mt-1">
+                      {selectedReport.type === 'employee' ? (selectedReport.department || 'N/A') : (selectedReport.payment_cycle || 'Monthly')}
+                    </p>
                   </div>
                   <div className="p-2 bg-emerald-100 rounded-lg">
-                    <TrendingUp className="h-5 w-5 text-emerald-600" />
+                    {selectedReport.type === 'employee' ? <User className="h-5 w-5 text-emerald-600" /> : <TrendingUp className="h-5 w-5 text-emerald-600" />}
                   </div>
                 </div>
               </CardContent>
@@ -245,14 +323,22 @@ const Reports = () => {
               <CardContent className="p-6">
                 <div className="flex justify-between items-start">
                   <div>
-                    <p className="text-sm font-medium text-blue-600 mb-1">Content Per Month</p>
+                    <p className="text-sm font-medium text-blue-600 mb-1">
+                      {selectedReport.type === 'employee' ? 'Monthly Task Performance' : 'Content Per Month'}
+                    </p>
                     <h3 className="text-2xl font-bold text-blue-900 tracking-tight">
-                      {Object.values(selectedReport.content_requirements || {}).reduce((acc: number, curr: any) => acc + (curr.target || 0), 0)}
+                      {selectedReport.type === 'employee'
+                        ? (selectedReport.tasks_completed ?? selectedReport.completed_tasks ?? selectedReport.completed_count ?? selectedReport.tasks_done ?? 0)
+                        : Object.values(selectedReport.content_requirements || {}).reduce((acc: number, curr: any) => acc + (curr.target || 0), 0)}
                     </h3>
-                    <p className="text-xs text-blue-600/70 mt-1">Total production goal</p>
+                    <p className="text-xs text-blue-600/70 mt-1">
+                      {selectedReport.type === 'employee'
+                        ? `${selectedReport.tasks_completed || 0} Completed / ${selectedReport.tasks_pending || 0} Pending`
+                        : 'Total monthly production goal'}
+                    </p>
                   </div>
                   <div className="p-2 bg-blue-100 rounded-lg">
-                    <BarChart3 className="h-5 w-5 text-blue-600" />
+                    {selectedReport.type === 'employee' ? <CalendarCheck className="h-5 w-5 text-blue-600" /> : <BarChart3 className="h-5 w-5 text-blue-600" />}
                   </div>
                 </div>
               </CardContent>
@@ -274,6 +360,38 @@ const Reports = () => {
                 </div>
               </CardContent>
             </Card>
+
+            {selectedReport.type === 'employee' && (
+              <Card className="bg-purple-50/50 border-purple-100 dark:bg-purple-950/20">
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="text-sm font-medium text-purple-600 mb-1">Leave Overview</p>
+                      <h3 className="text-2xl font-bold text-purple-900 tracking-tight leading-none group-hover:scale-105 transition-transform duration-300">
+                        {selectedReport.leaves_count || 0} {selectedReport.leaves_count === 1 ? 'Day' : 'Days'}
+                      </h3>
+                      {(() => {
+                        const pendingTotal = leavesData.filter(l =>
+                          (l.employee_id === selectedReport.id || l.employee_name === selectedReport.employee_name) &&
+                          l.status_code === 'pending'
+                        ).reduce((acc, curr) => acc + (curr.total_days || 0), 0);
+
+                        return pendingTotal > 0 ? (
+                          <p className="text-[10px] text-amber-600 font-bold mt-1.5 flex items-center gap-1 bg-amber-50 px-2 py-0.5 rounded-full w-fit">
+                            <Clock className="h-3 w-3" /> {pendingTotal} {pendingTotal === 1 ? 'day' : 'days'} pending
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-purple-600/70 font-semibold mt-1">Confirmed attendance impact</p>
+                        );
+                      })()}
+                    </div>
+                    <div className="p-2 bg-purple-100 rounded-lg">
+                      <Clock className="h-5 w-5 text-purple-600" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           <div className="flex flex-wrap gap-2 border-b pb-4">
@@ -282,22 +400,41 @@ const Reports = () => {
               onClick={() => setDetailTab('personal')}
               className="rounded-full px-6 font-semibold"
             >
-              Client Personal Details
+              {selectedReport.type === 'employee' ? 'Employee Personal Details' : 'Client Personal Details'}
             </Button>
             <Button
               variant={detailTab === 'payment' ? 'default' : 'outline'}
               onClick={() => setDetailTab('payment')}
               className="rounded-full px-6 font-semibold"
             >
-              Payment Details
+              {selectedReport.type === 'employee' ? 'Salary Details' : 'Payment Details'}
             </Button>
-            <Button
-              variant={detailTab === 'content' ? 'default' : 'outline'}
-              onClick={() => setDetailTab('content')}
-              className="rounded-full px-6 font-semibold"
-            >
-              Content Details
-            </Button>
+            {selectedReport.type === 'employee' && (
+              <Button
+                variant={detailTab === 'leaves' ? 'default' : 'outline'}
+                onClick={() => setDetailTab('leaves')}
+                className="rounded-full px-6 font-semibold"
+              >
+                Leave Details
+              </Button>
+            )}
+            {selectedReport.type === 'employee' ? (
+              <Button
+                variant={detailTab === 'tasks' ? 'default' : 'outline'}
+                onClick={() => setDetailTab('tasks')}
+                className="rounded-full px-6 font-semibold"
+              >
+                Task Details
+              </Button>
+            ) : (
+              <Button
+                variant={detailTab === 'content' ? 'default' : 'outline'}
+                onClick={() => setDetailTab('content')}
+                className="rounded-full px-6 font-semibold"
+              >
+                Content Details
+              </Button>
+            )}
           </div>
 
           <div className="animate-in fade-in slide-in-from-bottom-3 duration-500">
@@ -309,26 +446,38 @@ const Reports = () => {
                       <User className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <CardTitle className="text-lg font-black tracking-tight text-slate-800">Client Profile Profile</CardTitle>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Business & Contact Credentials</p>
+                      <CardTitle className="text-lg font-black tracking-tight text-slate-800">
+                        {selectedReport.type === 'employee' ? 'Employee Profile Summary' : 'Client Profile Summary'}
+                      </CardTitle>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                        {selectedReport.type === 'employee' ? 'Employment & Contact Info' : 'Business & Contact Credentials'}
+                      </p>
                     </div>
                   </CardHeader>
                   <CardContent className="p-10">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-10 gap-x-12">
                       <div className="relative pl-14 group">
                         <div className="absolute left-0 top-0 p-2.5 bg-slate-50 rounded-xl text-slate-400 group-hover:text-primary transition-colors ring-1 ring-slate-200">
-                          <ShieldCheck className="h-5 w-5" />
+                          {selectedReport.type === 'employee' ? <Briefcase className="h-5 w-5" /> : <ShieldCheck className="h-5 w-5" />}
                         </div>
-                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Ownership</p>
-                        <p className="text-base font-bold text-slate-700 tracking-tight">{selectedReport.owner_name || '-'}</p>
+                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">
+                          {selectedReport.type === 'employee' ? 'Designation' : 'Ownership'}
+                        </p>
+                        <p className="text-base font-bold text-slate-700 tracking-tight">
+                          {selectedReport.type === 'employee' ? (selectedReport.designation || 'Staff') : (selectedReport.owner_name || '-')}
+                        </p>
                       </div>
 
                       <div className="relative pl-14 group">
                         <div className="absolute left-0 top-0 p-2.5 bg-slate-50 rounded-xl text-slate-400 group-hover:text-primary transition-colors ring-1 ring-slate-200">
                           <Users className="h-5 w-5" />
                         </div>
-                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Key Liaison</p>
-                        <p className="text-base font-bold text-slate-700 tracking-tight">{selectedReport.contact_person || '-'}</p>
+                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">
+                          {selectedReport.type === 'employee' ? 'Department' : 'Key Liaison'}
+                        </p>
+                        <p className="text-base font-bold text-slate-700 tracking-tight">
+                          {selectedReport.type === 'employee' ? (selectedReport.department || 'General') : (selectedReport.contact_person || '-')}
+                        </p>
                       </div>
 
                       <div className="relative pl-14 group">
@@ -336,7 +485,11 @@ const Reports = () => {
                           <Mail className="h-5 w-5" />
                         </div>
                         <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Electronic Mail</p>
-                        <p className="text-base font-bold text-primary hover:underline decoration-primary/30 cursor-pointer transition-all">{selectedReport.contact_email || '-'}</p>
+                        <p className="text-base font-bold text-primary hover:underline decoration-primary/30 cursor-pointer transition-all">
+                          {selectedReport.type === 'employee'
+                            ? (selectedReport.email || selectedReport.employee_details?.email || selectedReport.employee_email || '-')
+                            : (selectedReport.contact_email || '-')}
+                        </p>
                       </div>
 
                       <div className="relative pl-14 group">
@@ -344,15 +497,25 @@ const Reports = () => {
                           <Phone className="h-5 w-5" />
                         </div>
                         <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Contact Channel</p>
-                        <p className="text-base font-bold text-slate-700 tracking-tight">{selectedReport.contact_phone || '-'}</p>
+                        <p className="text-base font-bold text-slate-700 tracking-tight">
+                          {selectedReport.type === 'employee'
+                            ? (selectedReport.phone_number || selectedReport.employee_details?.phone_number || selectedReport.phone || selectedReport.employee_phone || '-')
+                            : (selectedReport.contact_phone || '-')}
+                        </p>
                       </div>
 
-                      <div className="col-span-full pt-10 mt-2 border-t border-slate-100 relative pl-14 group">
+                      <div className="relative pl-14 group">
                         <div className="absolute left-0 top-10 p-2.5 bg-slate-50 rounded-xl text-slate-400 group-hover:text-primary transition-colors ring-1 ring-slate-200">
-                          <MapPin className="h-5 w-5" />
+                          {selectedReport.type === 'employee' ? <CalendarCheck className="h-5 w-5" /> : <MapPin className="h-5 w-5" />}
                         </div>
-                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Operational Base</p>
-                        <p className="text-base font-medium text-slate-600 leading-relaxed max-w-2xl">{selectedReport.location || 'Undisclosed Location'}</p>
+                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">
+                          {selectedReport.type === 'employee' ? 'Joining Date' : 'Operational Base'}
+                        </p>
+                        <p className="text-base font-medium text-slate-600 leading-relaxed max-w-2xl">
+                          {selectedReport.type === 'employee'
+                            ? (selectedReport.joining_date || selectedReport.employee_details?.joining_date || selectedReport.date_joined || selectedReport.employee_details?.date_joined || selectedReport.joined_at || selectedReport.hire_date || selectedReport.employee_joining_date || 'N/A')
+                            : (selectedReport.location || 'Undisclosed Location')}
+                        </p>
                       </div>
                     </div>
                   </CardContent>
@@ -374,11 +537,17 @@ const Reports = () => {
                           <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] leading-none">Status: {selectedReport.status || 'Verified'}</p>
                         </div>
-                        <h2 className="text-4xl font-black text-slate-900 tracking-tighter">Settlement <span className="text-slate-400 text-slate-500">Overview</span></h2>
+                        <h2 className="text-4xl font-black text-slate-900 tracking-tighter">
+                          {selectedReport.type === 'employee' ? 'Salary' : 'Settlement'} <span className="text-slate-400 text-slate-500">Overview</span>
+                        </h2>
                       </div>
                       <div className="bg-slate-50/80 backdrop-blur-md px-10 py-6 rounded-[2rem] ring-1 ring-slate-200/50 shadow-sm text-center">
-                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Net Payable Amount</p>
-                        <p className="text-4xl font-black text-slate-900 tracking-tighter">₹{selectedReport.net_amount?.toLocaleString()}</p>
+                        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+                          {selectedReport.type === 'employee' ? 'Net Paid' : 'Net Payable Amount'}
+                        </p>
+                        <p className="text-4xl font-black text-slate-900 tracking-tighter">
+                          ₹{(selectedReport.type === 'employee' ? selectedReport.net_paid : selectedReport.net_amount)?.toLocaleString()}
+                        </p>
                       </div>
                     </div>
                   </CardHeader>
@@ -388,28 +557,42 @@ const Reports = () => {
                       {/* Column 1: Financial Structure & Remarks */}
                       <div className="lg:col-span-9">
                         <div className="h-full p-8 bg-slate-50/50 rounded-[2.5rem] ring-1 ring-slate-100 shadow-inner flex flex-col gap-8">
-                          <div className="space-y-6">
-                            <div className="space-y-4">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Financial Breakdown</p>
-                              <div className="space-y-3">
-                                <div className="flex justify-between items-center group">
-                                  <span className="text-xs font-bold text-slate-500">Base Fee</span>
-                                  <span className="text-sm font-black text-slate-800">₹{selectedReport.amount?.toLocaleString()}</span>
-                                </div>
-                                <div className="flex justify-between items-center group">
-                                  <span className="text-xs font-bold text-slate-500">Tax/Comp.</span>
-                                  <span className="text-sm font-black text-emerald-600">+₹{selectedReport.tax?.toLocaleString() || '0'}</span>
-                                </div>
-                                <div className="flex justify-between items-center group pb-3 border-b border-slate-200/50">
-                                  <span className="text-xs font-bold text-slate-500">Discount</span>
-                                  <span className="text-sm font-black text-rose-500">-₹{selectedReport.discount?.toLocaleString() || '0'}</span>
-                                </div>
+                          <div className="space-y-4">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                              {selectedReport.type === 'employee' ? 'Salary Components' : 'Financial Breakdown'}
+                            </p>
+                            <div className="space-y-3">
+                              <div className="flex justify-between items-center group">
+                                <span className="text-xs font-bold text-slate-500">
+                                  {selectedReport.type === 'employee' ? 'Base Salary' : 'Base Fee'}
+                                </span>
+                                <span className="text-sm font-black text-slate-800">
+                                  ₹{(selectedReport.type === 'employee' ? selectedReport.base_salary : selectedReport.amount)?.toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center group">
+                                <span className="text-xs font-bold text-slate-500">
+                                  {selectedReport.type === 'employee' ? 'Incentives' : 'Tax/Comp.'}
+                                </span>
+                                <span className="text-sm font-black text-emerald-600">
+                                  +₹{(selectedReport.type === 'employee' ? selectedReport.incentives : selectedReport.tax)?.toLocaleString() || '0'}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center group pb-3 border-b border-slate-200/50">
+                                <span className="text-xs font-bold text-slate-500">
+                                  {selectedReport.type === 'employee' ? 'Deductions' : 'Discount'}
+                                </span>
+                                <span className="text-sm font-black text-rose-500">
+                                  -₹{(selectedReport.type === 'employee' ? selectedReport.deductions : selectedReport.discount)?.toLocaleString() || '0'}
+                                </span>
                               </div>
                             </div>
-                            <div className="flex justify-between items-center bg-white/50 p-4 rounded-2xl ring-1 ring-slate-100 shadow-sm">
-                              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Grand Total</span>
-                              <span className="text-3xl font-black text-slate-900 tracking-tighter">₹{selectedReport.net_amount?.toLocaleString()}</span>
-                            </div>
+                          </div>
+                          <div className="flex justify-between items-center bg-white/50 p-4 rounded-2xl ring-1 ring-slate-100 shadow-sm">
+                            <span className="text-[11px] font-black text-slate-400 uppercase tracking_widest">Grand Total</span>
+                            <span className="text-3xl font-black text-slate-900 tracking-tighter">
+                              ₹{(selectedReport.type === 'employee' ? selectedReport.net_paid : selectedReport.net_amount)?.toLocaleString()}
+                            </span>
                           </div>
 
                           <div className="space-y-4 pt-4 border-t border-slate-200/50">
@@ -417,7 +600,7 @@ const Reports = () => {
                               <span className="w-6 h-[2px] bg-emerald-200"></span> Auditor Remarks
                             </p>
                             <p className="text-xl font-black text-slate-900 leading-[1.4] tracking-tight italic">
-                              {selectedReport.remarks ? `"${selectedReport.remarks}"` : "The project delivers high-level service consistency across all content tracks, meeting the established monthly performance milestones."}
+                              {selectedReport.remarks ? `"${selectedReport.remarks}"` : "No additional auditor notes or remarks have been recorded for this period."}
                             </p>
                           </div>
                         </div>
@@ -450,7 +633,7 @@ const Reports = () => {
               </div>
             )}
 
-            {detailTab === 'content' && (
+            {detailTab === 'content' && selectedReport.type !== 'employee' && (
               <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   <Card className="border-none shadow-2xl overflow-hidden bg-white ring-1 ring-slate-200/50">
@@ -533,6 +716,153 @@ const Reports = () => {
                     </CardContent>
                   </Card>
                 </div>
+              </div>
+            )}
+
+            {detailTab === 'tasks' && selectedReport.type === 'employee' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
+                <Card className="border-none shadow-2xl overflow-hidden bg-white ring-1 ring-slate-200/50">
+                  <CardHeader className="py-8 px-10 border-b border-slate-50 bg-slate-50/20 flex flex-row items-center gap-5">
+                    <div className="p-3.5 bg-blue-100 rounded-[1.2rem] shadow-sm transform group-hover:rotate-6 transition-transform">
+                      <Layout className="h-5 w-5 text-blue-700" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg font-black tracking-tight text-slate-800">Monthly Task Overview</CardTitle>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Performance Metrics for {months.find(m => m.value === selectedMonth)?.label}</p>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-10">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                      <div className="space-y-6">
+                        <div className="p-6 bg-slate-50 rounded-3xl ring-1 ring-slate-200/50">
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Total Tasks Completed</p>
+                          <h4 className="text-4xl font-black text-slate-900 tracking-tighter">
+                            {selectedReport.tasks_completed ?? selectedReport.completed_tasks ?? selectedReport.completed_count ?? 0}
+                          </h4>
+                          <p className="text-xs text-muted-foreground mt-1">Successfully delivered milestones</p>
+                        </div>
+                        <div className="p-6 bg-amber-50 rounded-3xl ring-1 ring-amber-200/50">
+                          <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-2">Ongoing / Pending Tasks</p>
+                          <h4 className="text-4xl font-black text-amber-900 tracking-tighter">
+                            {selectedReport.tasks_pending ?? selectedReport.pending_tasks ?? selectedReport.pending_count ?? 0}
+                          </h4>
+                          <p className="text-xs text-amber-600/70 mt-1">Items currently in production</p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col justify-center space-y-4">
+                        <div className="p-6 bg-emerald-50 rounded-3xl ring-1 ring-emerald-200/50">
+                          <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-2">Completion Rate</p>
+                          <div className="flex items-end gap-3">
+                            <h4 className="text-4xl font-black text-emerald-900 tracking-tighter">
+                              {(() => {
+                                const completed = selectedReport.tasks_completed ?? selectedReport.completed_tasks ?? selectedReport.completed_count ?? 0;
+                                const pending = selectedReport.tasks_pending ?? selectedReport.pending_tasks ?? selectedReport.pending_count ?? 0;
+                                const total = completed + pending;
+                                return total === 0 ? 0 : Math.round((completed / total) * 100);
+                              })()}%
+                            </h4>
+                          </div>
+                          <div className="h-2 w-full bg-emerald-100 rounded-full mt-4 overflow-hidden">
+                            <div
+                              className="h-full bg-emerald-500 rounded-full"
+                              style={{
+                                width: `${(() => {
+                                  const completed = selectedReport.tasks_completed ?? selectedReport.completed_tasks ?? selectedReport.completed_count ?? 0;
+                                  const pending = selectedReport.tasks_pending ?? selectedReport.pending_tasks ?? selectedReport.pending_count ?? 0;
+                                  const total = completed + pending;
+                                  return total === 0 ? 0 : Math.round((completed / total) * 100);
+                                })()}%`
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {detailTab === 'leaves' && selectedReport.type === 'employee' && (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-3 duration-500">
+                <Card className="border-none shadow-2xl overflow-hidden bg-white ring-1 ring-slate-200/50">
+                  <CardHeader className="py-8 px-10 border-b border-slate-50 bg-slate-50/20 flex flex-row items-center gap-5">
+                    <div className="p-3.5 bg-purple-100 rounded-[1.2rem] shadow-sm transform group-hover:rotate-6 transition-transform">
+                      <Clock className="h-5 w-5 text-purple-700" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg font-black tracking-tight text-slate-800">Monthly Leave Log</CardTitle>
+                      <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Attendance records for {months.find(m => m.value === selectedMonth)?.label}</p>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="p-10">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+                      <div className="p-6 bg-purple-50 rounded-3xl ring-1 ring-purple-200/50">
+                        <p className="text-[10px] font-black text-purple-600 uppercase tracking-widest mb-2">Total Leaves Taken</p>
+                        <h4 className="text-4xl font-black text-purple-900 tracking-tighter">{selectedReport.leaves_count || 0}</h4>
+                        <p className="text-xs text-muted-foreground mt-1">Days away from work</p>
+                      </div>
+                      <div className="md:col-span-2 p-6 bg-slate-50 rounded-3xl ring-1 ring-slate-200/50 flex items-center">
+                        <p className="text-sm text-muted-foreground leading-relaxed italic">
+                          {selectedReport.leaves_count > 0
+                            ? `Details of leaves taken by ${selectedReport.employee_name} this month are listed below.`
+                            : "The employee's attendance for this month shows consistent engagement. No leaves have been recorded for this period."}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow className="bg-slate-50/50">
+                            <TableHead className="font-bold">Leave Type</TableHead>
+                            <TableHead className="font-bold">Date Range</TableHead>
+                            <TableHead className="font-bold">Days</TableHead>
+                            <TableHead className="font-bold">Status</TableHead>
+                            <TableHead className="font-bold">Reason</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {(() => {
+                            const empLeaves = leavesData.filter(l =>
+                              l.employee_id === selectedReport.id ||
+                              l.employee_name === selectedReport.employee_name
+                            );
+
+                            if (empLeaves.length === 0) {
+                              return (
+                                <TableRow>
+                                  <TableCell colSpan={5} className="text-center py-12 text-slate-400 font-medium border-2 border-dashed border-slate-50 rounded-3xl mt-4">
+                                    No detailed leave records found for this period.
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            }
+
+                            return empLeaves.map((leave, idx) => (
+                              <TableRow key={idx} className="hover:bg-slate-50/50 transition-colors">
+                                <TableCell className="font-semibold text-slate-700">{leave.category}</TableCell>
+                                <TableCell className="text-slate-600 text-xs">
+                                  {leave.start_date} to {leave.end_date}
+                                </TableCell>
+                                <TableCell className="font-black text-slate-900">{leave.total_days}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className={leave.status_code === 'approved' ? 'bg-emerald-50 text-emerald-600 border-emerald-100 font-bold' : 'bg-amber-50 text-amber-600 border-amber-100 font-bold'}>
+                                    {leave.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-slate-500 italic text-xs max-w-[200px] truncate" title={leave.reason}>
+                                  {leave.reason || 'No reason provided'}
+                                </TableCell>
+                              </TableRow>
+                            ));
+                          })()}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             )}
           </div>
@@ -634,9 +964,10 @@ const Reports = () => {
                         <TableHead>Name</TableHead>
                         <TableHead>Department</TableHead>
                         <TableHead>Base Salary</TableHead>
-                        <TableHead>Net Paid</TableHead>
-                        <TableHead>Payment Date</TableHead>
-                        <TableHead>Status</TableHead>
+                        <TableHead>Gender</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -646,20 +977,30 @@ const Reports = () => {
                             <TableCell className="font-medium">{employee.employee_name}</TableCell>
                             <TableCell>{employee.department || 'N/A'}</TableCell>
                             <TableCell>₹{employee.base_salary?.toLocaleString() || '0'}</TableCell>
-                            <TableCell>₹{employee.net_paid?.toLocaleString() || '0'}</TableCell>
-                            <TableCell>{employee.payment_date || '-'}</TableCell>
+                            <TableCell className="capitalize">
+                              {employee.gender || employee.employee_details?.gender || employee.employee_gender || '-'}
+                            </TableCell>
+                            <TableCell className="text-xs text-muted-foreground">
+                              {employee.email || employee.employee_details?.email || employee.employee_email || '-'}
+                            </TableCell>
                             <TableCell>
-                              <span className={`px-2 py-1 rounded-full text-xs font-semibold 
-                              ${employee.status?.toLowerCase().includes('paid') ? 'bg-green-100 text-green-800' :
-                                  'bg-yellow-100 text-yellow-800'}`}>
-                                {employee.status?.toUpperCase() || 'N/A'}
-                              </span>
+                              {employee.phone_number || employee.employee_details?.phone_number || employee.phone || employee.employee_phone || '-'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSelectedReport({ ...employee, type: 'employee' })}
+                                className="h-7 px-2 text-xs"
+                              >
+                                View
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center py-4 text-muted-foreground">
+                          <TableCell colSpan={7} className="text-center py-4 text-muted-foreground">
                             No employee reports found for this period.
                           </TableCell>
                         </TableRow>
@@ -811,8 +1152,9 @@ const Reports = () => {
             </Card>
           </TabsContent>
         </Tabs>
-      )}
-    </div>
+      )
+      }
+    </div >
   );
 };
 

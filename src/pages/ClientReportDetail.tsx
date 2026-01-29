@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Video, Image as ImageIcon, IndianRupee, Calendar, FileSpreadsheet } from 'lucide-react';
+import { ArrowLeft, Video, Image as ImageIcon, IndianRupee, Calendar, FileSpreadsheet, FileText } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { exportDetailedReportToPDF } from '@/lib/pdfExport';
 import {
   BarChart,
   Bar,
@@ -49,7 +50,7 @@ const ClientReportDetail = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const selectedMonth = location.state?.month || 'January 2026';
-  
+
   // Safe cast for demo purposes
   const clientId = Number(id) as keyof typeof clientDetails;
   const client = { ...clientDetails[clientId] || clientDetails[1], month: selectedMonth }; // Override month with selected one
@@ -58,11 +59,27 @@ const ClientReportDetail = () => {
   const totalPosters = contentLog.filter(c => c.type === 'Poster').length;
   const totalSpend = adsData.reduce((acc, curr) => acc + curr.spend, 0);
 
-  const handleExport = (data: any[], fileName: string) => {
-    const worksheet = XLSX.utils.json_to_sheet(data);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
-    XLSX.writeFile(workbook, `${fileName}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  const handlePDFExport = () => {
+    exportDetailedReportToPDF(
+      [
+        {
+          title: 'Content Production Log',
+          data: contentLog,
+          columns: ['title', 'type', 'takenDate', 'postedDate', 'employee', 'postedBy']
+        },
+        {
+          title: 'Ads Performance',
+          data: adsData,
+          columns: ['campaign', 'platform', 'status', 'spend']
+        }
+      ],
+      {
+        filename: `${client.name}_Monthly_Report_${client.month}`,
+        mainTitle: `${client.name} - Monthly Report`,
+        subtitle: client.month,
+        orientation: 'portrait'
+      }
+    );
   };
 
   return (
@@ -77,7 +94,24 @@ const ClientReportDetail = () => {
             <Calendar className="h-4 w-4" /> {client.month}
           </p>
         </div>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            onClick={() => {
+              const worksheet = XLSX.utils.json_to_sheet(contentLog);
+              const workbook = XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
+              XLSX.writeFile(workbook, `${client.name}_Content_Log_${new Date().toISOString().split('T')[0]}.xlsx`);
+            }}
+            className="gap-2 rounded-r-none border-r border-primary/20"
+            variant="default"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            CSV
+          </Button>
+          <Button onClick={handlePDFExport} className="gap-2 rounded-l-none" variant="default">
+            <FileText className="h-4 w-4" />
+            PDF
+          </Button>
           <Badge variant={client.paymentStatus === 'Paid' ? 'default' : 'destructive'} className="text-lg px-4 py-1">
             {client.paymentStatus}
           </Badge>
@@ -129,15 +163,6 @@ const ClientReportDetail = () => {
                 <CardTitle>Content Production Log</CardTitle>
                 <CardDescription>Details of videos and posters created this month.</CardDescription>
               </div>
-              <Button 
-                variant="outline"
-                size="sm"
-                onClick={() => handleExport(contentLog, `${client.name}_Content_Log`)}
-                className="flex items-center gap-2"
-              >
-                <FileSpreadsheet className="h-4 w-4" />
-                Export Log
-              </Button>
             </CardHeader>
             <CardContent>
               <Table>
@@ -204,7 +229,7 @@ const ClientReportDetail = () => {
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-4">
-           <Card>
+          <Card>
             <CardHeader>
               <CardTitle>Monthly Production & Spend</CardTitle>
             </CardHeader>
