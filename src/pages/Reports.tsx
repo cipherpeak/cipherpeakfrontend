@@ -137,7 +137,12 @@ const Reports = () => {
 
   useEffect(() => {
     if (selectedReport) {
-      const dataSet = selectedReport.type === 'client' ? clientData : employeeData;
+      let dataSet: any[] = [];
+      if (selectedReport.type === 'client') dataSet = clientData;
+      else if (selectedReport.type === 'employee') dataSet = employeeData;
+      else if (selectedReport.type === 'income') dataSet = incomeData;
+      else if (selectedReport.type === 'expense') dataSet = expenseData;
+
       const updated = dataSet.find(item => item.id === selectedReport.id);
 
       if (updated) {
@@ -175,7 +180,7 @@ const Reports = () => {
         }
       }
     }
-  }, [clientData, employeeData, isLoading]);
+  }, [clientData, employeeData, incomeData, expenseData, isLoading]);
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -275,7 +280,16 @@ const Reports = () => {
                       .map(([key, val]: [string, any]) => `${key.charAt(0).toUpperCase()}:${val.actual || 0}/${val.target || 0}`)
                       .join(', ');
                   }
-                  exportToPDF([cleanedReport], `Client_${selectedReport.client_name}_Details`, `Client Report: ${selectedReport.client_name}`);
+
+                  const filename = ['income', 'expense'].includes(selectedReport.type)
+                    ? `${selectedReport.type.charAt(0).toUpperCase() + selectedReport.type.slice(1)}_${selectedReport.id || 'record'}`
+                    : `Report_${selectedReport.client_name || selectedReport.employee_name || 'Details'}`;
+
+                  const title = ['income', 'expense'].includes(selectedReport.type)
+                    ? `${selectedReport.type.charAt(0).toUpperCase() + selectedReport.type.slice(1)} Report: ${selectedReport.type_display || selectedReport.type}`
+                    : `${selectedReport.type === 'employee' ? 'Employee' : 'Client'} Report: ${selectedReport.employee_name || selectedReport.client_name}`;
+
+                  exportToPDF([cleanedReport], filename, title);
                 }}
                 className="gap-2"
                 variant="default"
@@ -288,7 +302,9 @@ const Reports = () => {
 
           <div className="flex items-center gap-3 mb-1">
             <h2 className="text-3xl font-black tracking-tight text-slate-800 uppercase italic">
-              {selectedReport.type === 'employee' ? selectedReport.employee_name : selectedReport.client_name}
+              {selectedReport.type === 'employee' ? selectedReport.employee_name :
+                selectedReport.type === 'client' ? selectedReport.client_name :
+                  (selectedReport.type_display || selectedReport.type)}
             </h2>
             {selectedReport.no_data && (
               <Badge variant="destructive" className="font-black animate-pulse shadow-sm">
@@ -303,17 +319,23 @@ const Reports = () => {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-sm font-medium text-emerald-600 mb-1">
-                      {selectedReport.type === 'employee' ? 'Base Salary' : 'Monthly Retainer'}
+                      {selectedReport.type === 'employee' ? 'Base Salary' :
+                        selectedReport.type === 'client' ? 'Monthly Retainer' : 'Amount'}
                     </p>
                     <h3 className="text-2xl font-bold text-emerald-900 tracking-tight">
-                      ₹{(selectedReport.type === 'employee' ? selectedReport.base_salary : selectedReport.monthly_retainer)?.toLocaleString() || '0'}
+                      ₹{(selectedReport.type === 'employee' ? selectedReport.base_salary :
+                        selectedReport.type === 'client' ? selectedReport.monthly_retainer : selectedReport.amount)?.toLocaleString() || '0'}
                     </h3>
                     <p className="text-xs text-emerald-600/70 mt-1">
-                      {selectedReport.type === 'employee' ? (selectedReport.department || 'N/A') : (selectedReport.payment_cycle || 'Monthly')}
+                      {selectedReport.type === 'employee' ? (selectedReport.department || 'N/A') :
+                        selectedReport.type === 'client' ? (selectedReport.payment_cycle || 'Monthly') :
+                          (selectedReport.category || selectedReport.category_name || 'General')}
                     </p>
                   </div>
                   <div className="p-2 bg-emerald-100 rounded-lg">
-                    {selectedReport.type === 'employee' ? <User className="h-5 w-5 text-emerald-600" /> : <TrendingUp className="h-5 w-5 text-emerald-600" />}
+                    {selectedReport.type === 'employee' ? <User className="h-5 w-5 text-emerald-600" /> :
+                      ['income', 'expense'].includes(selectedReport.type) ? <DollarSign className="h-5 w-5 text-emerald-600" /> :
+                        <TrendingUp className="h-5 w-5 text-emerald-600" />}
                   </div>
                 </div>
               </CardContent>
@@ -324,21 +346,26 @@ const Reports = () => {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="text-sm font-medium text-blue-600 mb-1">
-                      {selectedReport.type === 'employee' ? 'Monthly Task Performance' : 'Content Per Month'}
+                      {selectedReport.type === 'employee' ? 'Monthly Task Performance' :
+                        selectedReport.type === 'client' ? 'Content Per Month' : 'Transaction Date'}
                     </p>
                     <h3 className="text-2xl font-bold text-blue-900 tracking-tight">
                       {selectedReport.type === 'employee'
                         ? (selectedReport.tasks_completed ?? selectedReport.completed_tasks ?? selectedReport.completed_count ?? selectedReport.tasks_done ?? 0)
-                        : Object.values(selectedReport.content_requirements || {}).reduce((acc: number, curr: any) => acc + (curr.target || 0), 0)}
+                        : selectedReport.type === 'client'
+                          ? Object.values(selectedReport.content_requirements || {}).reduce((acc: number, curr: any) => acc + (curr.target || 0), 0)
+                          : selectedReport.date}
                     </h3>
                     <p className="text-xs text-blue-600/70 mt-1">
                       {selectedReport.type === 'employee'
                         ? `${selectedReport.tasks_completed || 0} Completed / ${selectedReport.tasks_pending || 0} Pending`
-                        : 'Total monthly production goal'}
+                        : selectedReport.type === 'client' ? 'Total monthly production goal' : 'Recorded transaction date'}
                     </p>
                   </div>
                   <div className="p-2 bg-blue-100 rounded-lg">
-                    {selectedReport.type === 'employee' ? <CalendarCheck className="h-5 w-5 text-blue-600" /> : <BarChart3 className="h-5 w-5 text-blue-600" />}
+                    {selectedReport.type === 'employee' ? <CalendarCheck className="h-5 w-5 text-blue-600" /> :
+                      ['income', 'expense'].includes(selectedReport.type) ? <Clock className="h-5 w-5 text-blue-600" /> :
+                        <BarChart3 className="h-5 w-5 text-blue-600" />}
                   </div>
                 </div>
               </CardContent>
@@ -361,16 +388,20 @@ const Reports = () => {
               </CardContent>
             </Card>
 
-            {selectedReport.type === 'employee' && (
-              <Card className="bg-purple-50/50 border-purple-100 dark:bg-purple-950/20">
+            {['employee', 'income', 'expense'].includes(selectedReport.type) && (
+              <Card className={selectedReport.type === 'employee' ? "bg-purple-50/50 border-purple-100" : "bg-slate-50 border-slate-200"}>
                 <CardContent className="p-6">
                   <div className="flex justify-between items-start">
                     <div>
-                      <p className="text-sm font-medium text-purple-600 mb-1">Leave Overview</p>
-                      <h3 className="text-2xl font-bold text-purple-900 tracking-tight leading-none group-hover:scale-105 transition-transform duration-300">
-                        {selectedReport.leaves_count || 0} {selectedReport.leaves_count === 1 ? 'Day' : 'Days'}
+                      <p className={`text-sm font-medium mb-1 ${selectedReport.type === 'employee' ? 'text-purple-600' : 'text-slate-600'}`}>
+                        {selectedReport.type === 'employee' ? 'Leave Overview' : 'Payment Channel'}
+                      </p>
+                      <h3 className={`text-2xl font-bold tracking-tight leading-none ${selectedReport.type === 'employee' ? 'text-purple-900' : 'text-slate-900'}`}>
+                        {selectedReport.type === 'employee'
+                          ? `${selectedReport.leaves_count || 0} ${selectedReport.leaves_count === 1 ? 'Day' : 'Days'}`
+                          : selectedReport.payment_method?.replace('_', ' ').toUpperCase() || 'DIRECT TRANSFER'}
                       </h3>
-                      {(() => {
+                      {selectedReport.type === 'employee' ? (() => {
                         const pendingTotal = leavesData.filter(l =>
                           (l.employee_id === selectedReport.id || l.employee_name === selectedReport.employee_name) &&
                           l.status_code === 'pending'
@@ -383,10 +414,12 @@ const Reports = () => {
                         ) : (
                           <p className="text-[10px] text-purple-600/70 font-semibold mt-1">Confirmed attendance impact</p>
                         );
-                      })()}
+                      })() : (
+                        <p className="text-[10px] text-slate-500 font-semibold mt-1 uppercase tracking-wider">Verified transaction method</p>
+                      )}
                     </div>
-                    <div className="p-2 bg-purple-100 rounded-lg">
-                      <Clock className="h-5 w-5 text-purple-600" />
+                    <div className={`p-2 rounded-lg ${selectedReport.type === 'employee' ? 'bg-purple-100' : 'bg-slate-100'}`}>
+                      {selectedReport.type === 'employee' ? <Clock className="h-5 w-5 text-purple-600" /> : <CreditCard className="h-5 w-5 text-slate-600" />}
                     </div>
                   </div>
                 </CardContent>
@@ -400,14 +433,17 @@ const Reports = () => {
               onClick={() => setDetailTab('personal')}
               className="rounded-full px-6 font-semibold"
             >
-              {selectedReport.type === 'employee' ? 'Employee Personal Details' : 'Client Personal Details'}
+              {selectedReport.type === 'employee' ? 'Employee Personal Details' :
+                selectedReport.type === 'client' ? 'Client Personal Details' :
+                  selectedReport.type === 'income' ? 'General Details' : 'General Details'}
             </Button>
             <Button
               variant={detailTab === 'payment' ? 'default' : 'outline'}
               onClick={() => setDetailTab('payment')}
               className="rounded-full px-6 font-semibold"
             >
-              {selectedReport.type === 'employee' ? 'Salary Details' : 'Payment Details'}
+              {selectedReport.type === 'employee' ? 'Salary Details' :
+                selectedReport.type === 'client' ? 'Payment Details' : 'Transaction Details'}
             </Button>
             {selectedReport.type === 'employee' && (
               <Button
@@ -418,21 +454,13 @@ const Reports = () => {
                 Leave Details
               </Button>
             )}
-            {selectedReport.type === 'employee' ? (
+            {['employee', 'client'].includes(selectedReport.type) && (
               <Button
-                variant={detailTab === 'tasks' ? 'default' : 'outline'}
-                onClick={() => setDetailTab('tasks')}
+                variant={selectedReport.type === 'employee' ? (detailTab === 'tasks' ? 'default' : 'outline') : (detailTab === 'content' ? 'default' : 'outline')}
+                onClick={() => setDetailTab(selectedReport.type === 'employee' ? 'tasks' : 'content')}
                 className="rounded-full px-6 font-semibold"
               >
-                Task Details
-              </Button>
-            ) : (
-              <Button
-                variant={detailTab === 'content' ? 'default' : 'outline'}
-                onClick={() => setDetailTab('content')}
-                className="rounded-full px-6 font-semibold"
-              >
-                Content Details
+                {selectedReport.type === 'employee' ? 'Task Details' : 'Content Details'}
               </Button>
             )}
           </div>
@@ -447,10 +475,13 @@ const Reports = () => {
                     </div>
                     <div>
                       <CardTitle className="text-lg font-black tracking-tight text-slate-800">
-                        {selectedReport.type === 'employee' ? 'Employee Profile Summary' : 'Client Profile Summary'}
+                        {selectedReport.type === 'employee' ? 'Employee Profile Summary' :
+                          selectedReport.type === 'client' ? 'Client Profile Summary' :
+                            selectedReport.type === 'income' ? 'Income Transaction Summary' : 'Expense Transaction Summary'}
                       </CardTitle>
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                        {selectedReport.type === 'employee' ? 'Employment & Contact Info' : 'Business & Contact Credentials'}
+                        {['income', 'expense'].includes(selectedReport.type) ? 'Transaction & Entity Details' :
+                          selectedReport.type === 'employee' ? 'Employment & Contact Info' : 'Business & Contact Credentials'}
                       </p>
                     </div>
                   </CardHeader>
@@ -458,63 +489,77 @@ const Reports = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-10 gap-x-12">
                       <div className="relative pl-14 group">
                         <div className="absolute left-0 top-0 p-2.5 bg-slate-50 rounded-xl text-slate-400 group-hover:text-primary transition-colors ring-1 ring-slate-200">
-                          {selectedReport.type === 'employee' ? <Briefcase className="h-5 w-5" /> : <ShieldCheck className="h-5 w-5" />}
+                          {selectedReport.type === 'employee' ? <Briefcase className="h-5 w-5" /> :
+                            ['income', 'expense'].includes(selectedReport.type) ? <Zap className="h-5 w-5" /> :
+                              <ShieldCheck className="h-5 w-5" />}
                         </div>
                         <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">
-                          {selectedReport.type === 'employee' ? 'Designation' : 'Ownership'}
+                          {selectedReport.type === 'employee' ? 'Designation' :
+                            ['income', 'expense'].includes(selectedReport.type) ? 'Transaction Type' : 'Ownership'}
                         </p>
                         <p className="text-base font-bold text-slate-700 tracking-tight">
-                          {selectedReport.type === 'employee' ? (selectedReport.designation || 'Staff') : (selectedReport.owner_name || '-')}
+                          {selectedReport.type === 'employee' ? (selectedReport.designation || 'Staff') :
+                            ['income', 'expense'].includes(selectedReport.type) ? (selectedReport.type_display || selectedReport.type || '-') :
+                              (selectedReport.owner_name || '-')}
                         </p>
                       </div>
 
-                      <div className="relative pl-14 group">
-                        <div className="absolute left-0 top-0 p-2.5 bg-slate-50 rounded-xl text-slate-400 group-hover:text-primary transition-colors ring-1 ring-slate-200">
-                          <Users className="h-5 w-5" />
+                      {!['income', 'expense'].includes(selectedReport.type) && (
+                        <div className="relative pl-14 group">
+                          <div className="absolute left-0 top-0 p-2.5 bg-slate-50 rounded-xl text-slate-400 group-hover:text-primary transition-colors ring-1 ring-slate-200">
+                            <Users className="h-5 w-5" />
+                          </div>
+                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">
+                            {selectedReport.type === 'employee' ? 'Department' : 'Key Liaison'}
+                          </p>
+                          <p className="text-base font-bold text-slate-700 tracking-tight">
+                            {selectedReport.type === 'employee' ? (selectedReport.department || 'General') : (selectedReport.contact_person || '-')}
+                          </p>
                         </div>
-                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">
-                          {selectedReport.type === 'employee' ? 'Department' : 'Key Liaison'}
-                        </p>
-                        <p className="text-base font-bold text-slate-700 tracking-tight">
-                          {selectedReport.type === 'employee' ? (selectedReport.department || 'General') : (selectedReport.contact_person || '-')}
-                        </p>
-                      </div>
+                      )}
 
-                      <div className="relative pl-14 group">
-                        <div className="absolute left-0 top-0 p-2.5 bg-slate-50 rounded-xl text-slate-400 group-hover:text-primary transition-colors ring-1 ring-slate-200">
-                          <Mail className="h-5 w-5" />
+                      {!['income', 'expense'].includes(selectedReport.type) && (
+                        <div className="relative pl-14 group">
+                          <div className="absolute left-0 top-0 p-2.5 bg-slate-50 rounded-xl text-slate-400 group-hover:text-primary transition-colors ring-1 ring-slate-200">
+                            <Mail className="h-5 w-5" />
+                          </div>
+                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Electronic Mail</p>
+                          <p className="text-base font-bold text-primary hover:underline decoration-primary/30 cursor-pointer transition-all">
+                            {selectedReport.type === 'employee'
+                              ? (selectedReport.email || selectedReport.employee_details?.email || selectedReport.employee_email || '-')
+                              : (selectedReport.contact_email || '-')}
+                          </p>
                         </div>
-                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Electronic Mail</p>
-                        <p className="text-base font-bold text-primary hover:underline decoration-primary/30 cursor-pointer transition-all">
-                          {selectedReport.type === 'employee'
-                            ? (selectedReport.email || selectedReport.employee_details?.email || selectedReport.employee_email || '-')
-                            : (selectedReport.contact_email || '-')}
-                        </p>
-                      </div>
+                      )}
 
-                      <div className="relative pl-14 group">
-                        <div className="absolute left-0 top-0 p-2.5 bg-slate-50 rounded-xl text-slate-400 group-hover:text-primary transition-colors ring-1 ring-slate-200">
-                          <Phone className="h-5 w-5" />
+                      {!['income', 'expense'].includes(selectedReport.type) && (
+                        <div className="relative pl-14 group">
+                          <div className="absolute left-0 top-0 p-2.5 bg-slate-50 rounded-xl text-slate-400 group-hover:text-primary transition-colors ring-1 ring-slate-200">
+                            <Phone className="h-5 w-5" />
+                          </div>
+                          <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Contact Channel</p>
+                          <p className="text-base font-bold text-slate-700 tracking-tight">
+                            {selectedReport.type === 'employee'
+                              ? (selectedReport.phone_number || selectedReport.employee_details?.phone_number || selectedReport.phone || selectedReport.employee_phone || '-')
+                              : (selectedReport.contact_phone || '-')}
+                          </p>
                         </div>
-                        <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">Contact Channel</p>
-                        <p className="text-base font-bold text-slate-700 tracking-tight">
-                          {selectedReport.type === 'employee'
-                            ? (selectedReport.phone_number || selectedReport.employee_details?.phone_number || selectedReport.phone || selectedReport.employee_phone || '-')
-                            : (selectedReport.contact_phone || '-')}
-                        </p>
-                      </div>
+                      )}
 
                       <div className="relative pl-14 group">
                         <div className="absolute left-0 top-10 p-2.5 bg-slate-50 rounded-xl text-slate-400 group-hover:text-primary transition-colors ring-1 ring-slate-200">
-                          {selectedReport.type === 'employee' ? <CalendarCheck className="h-5 w-5" /> : <MapPin className="h-5 w-5" />}
+                          {selectedReport.type === 'employee' ? <CalendarCheck className="h-5 w-5" /> :
+                            ['income', 'expense'].includes(selectedReport.type) ? <Clock className="h-5 w-5" /> :
+                              <MapPin className="h-5 w-5" />}
                         </div>
                         <p className="text-[10px] text-slate-400 font-black uppercase tracking-widest mb-1">
-                          {selectedReport.type === 'employee' ? 'Joining Date' : 'Operational Base'}
+                          {selectedReport.type === 'employee' ? 'Joining Date' :
+                            ['income', 'expense'].includes(selectedReport.type) ? 'Transaction Date' : 'Operational Base'}
                         </p>
                         <p className="text-base font-medium text-slate-600 leading-relaxed max-w-2xl">
                           {selectedReport.type === 'employee'
                             ? (selectedReport.joining_date || selectedReport.employee_details?.joining_date || selectedReport.date_joined || selectedReport.employee_details?.date_joined || selectedReport.joined_at || selectedReport.hire_date || selectedReport.employee_joining_date || 'N/A')
-                            : (selectedReport.location || 'Undisclosed Location')}
+                            : ['income', 'expense'].includes(selectedReport.type) ? selectedReport.date : (selectedReport.location || 'Undisclosed Location')}
                         </p>
                       </div>
                     </div>
@@ -538,15 +583,18 @@ const Reports = () => {
                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] leading-none">Status: {selectedReport.status || 'Verified'}</p>
                         </div>
                         <h2 className="text-4xl font-black text-slate-900 tracking-tighter">
-                          {selectedReport.type === 'employee' ? 'Salary' : 'Settlement'} <span className="text-slate-400 text-slate-500">Overview</span>
+                          {selectedReport.type === 'employee' ? 'Salary' :
+                            ['income', 'expense'].includes(selectedReport.type) ? 'Transaction' : 'Settlement'} <span className="text-slate-400 text-slate-500">Overview</span>
                         </h2>
                       </div>
                       <div className="bg-slate-50/80 backdrop-blur-md px-10 py-6 rounded-[2rem] ring-1 ring-slate-200/50 shadow-sm text-center">
                         <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-                          {selectedReport.type === 'employee' ? 'Net Paid' : 'Net Payable Amount'}
+                          {selectedReport.type === 'employee' ? 'Net Paid' :
+                            ['income', 'expense'].includes(selectedReport.type) ? 'Total Amount' : 'Net Payable Amount'}
                         </p>
                         <p className="text-4xl font-black text-slate-900 tracking-tighter">
-                          ₹{(selectedReport.type === 'employee' ? selectedReport.net_paid : selectedReport.net_amount)?.toLocaleString()}
+                          ₹{(selectedReport.type === 'employee' ? selectedReport.net_paid :
+                            ['income', 'expense'].includes(selectedReport.type) ? selectedReport.amount : selectedReport.net_amount)?.toLocaleString()}
                         </p>
                       </div>
                     </div>
@@ -559,39 +607,59 @@ const Reports = () => {
                         <div className="h-full p-8 bg-slate-50/50 rounded-[2.5rem] ring-1 ring-slate-100 shadow-inner flex flex-col gap-8">
                           <div className="space-y-4">
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
-                              {selectedReport.type === 'employee' ? 'Salary Components' : 'Financial Breakdown'}
+                              {selectedReport.type === 'employee' ? 'Salary Components' :
+                                ['income', 'expense'].includes(selectedReport.type) ? 'Transaction Info' : 'Financial Breakdown'}
                             </p>
                             <div className="space-y-3">
-                              <div className="flex justify-between items-center group">
-                                <span className="text-xs font-bold text-slate-500">
-                                  {selectedReport.type === 'employee' ? 'Base Salary' : 'Base Fee'}
-                                </span>
-                                <span className="text-sm font-black text-slate-800">
-                                  ₹{(selectedReport.type === 'employee' ? selectedReport.base_salary : selectedReport.amount)?.toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex justify-between items-center group">
-                                <span className="text-xs font-bold text-slate-500">
-                                  {selectedReport.type === 'employee' ? 'Incentives' : 'Tax/Comp.'}
-                                </span>
-                                <span className="text-sm font-black text-emerald-600">
-                                  +₹{(selectedReport.type === 'employee' ? selectedReport.incentives : selectedReport.tax)?.toLocaleString() || '0'}
-                                </span>
-                              </div>
-                              <div className="flex justify-between items-center group pb-3 border-b border-slate-200/50">
-                                <span className="text-xs font-bold text-slate-500">
-                                  {selectedReport.type === 'employee' ? 'Deductions' : 'Discount'}
-                                </span>
-                                <span className="text-sm font-black text-rose-500">
-                                  -₹{(selectedReport.type === 'employee' ? selectedReport.deductions : selectedReport.discount)?.toLocaleString() || '0'}
-                                </span>
-                              </div>
+                              {['income', 'expense'].includes(selectedReport.type) ? (
+                                <>
+                                  <div className="flex justify-between items-center group">
+                                    <span className="text-xs font-bold text-slate-500">Transaction Date</span>
+                                    <span className="text-sm font-black text-slate-800">{selectedReport.date}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center group">
+                                    <span className="text-xs font-bold text-slate-500">Category</span>
+                                    <span className="text-sm font-black text-emerald-600">{selectedReport.category || selectedReport.category_name || '-'}</span>
+                                  </div>
+                                  <div className="flex justify-between items-center group pb-3 border-b border-slate-200/50">
+                                    <span className="text-xs font-bold text-slate-500">Payment Method</span>
+                                    <span className="text-sm font-black text-slate-800 uppercase">{selectedReport.payment_method?.replace('_', ' ') || 'Direct'}</span>
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="flex justify-between items-center group">
+                                    <span className="text-xs font-bold text-slate-500">
+                                      {selectedReport.type === 'employee' ? 'Base Salary' : 'Base Fee'}
+                                    </span>
+                                    <span className="text-sm font-black text-slate-800">
+                                      ₹{(selectedReport.type === 'employee' ? selectedReport.base_salary : selectedReport.amount)?.toLocaleString()}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-center group">
+                                    <span className="text-xs font-bold text-slate-500">
+                                      {selectedReport.type === 'employee' ? 'Incentives' : 'Tax/Comp.'}
+                                    </span>
+                                    <span className="text-sm font-black text-emerald-600">
+                                      +₹{(selectedReport.type === 'employee' ? selectedReport.incentives : (['income', 'expense'].includes(selectedReport.type) ? selectedReport.gst_amount : selectedReport.tax))?.toLocaleString() || '0'}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-center group pb-3 border-b border-slate-200/50">
+                                    <span className="text-xs font-bold text-slate-500">
+                                      {selectedReport.type === 'employee' ? 'Deductions' : 'Discount'}
+                                    </span>
+                                    <span className="text-sm font-black text-rose-500">
+                                      -₹{(selectedReport.type === 'employee' ? selectedReport.deductions : (['income', 'expense'].includes(selectedReport.type) ? 0 : selectedReport.discount))?.toLocaleString() || '0'}
+                                    </span>
+                                  </div>
+                                </>
+                              )}
                             </div>
                           </div>
                           <div className="flex justify-between items-center bg-white/50 p-4 rounded-2xl ring-1 ring-slate-100 shadow-sm">
                             <span className="text-[11px] font-black text-slate-400 uppercase tracking_widest">Grand Total</span>
                             <span className="text-3xl font-black text-slate-900 tracking-tighter">
-                              ₹{(selectedReport.type === 'employee' ? selectedReport.net_paid : selectedReport.net_amount)?.toLocaleString()}
+                              ₹{(selectedReport.type === 'employee' ? selectedReport.net_paid : (['income', 'expense'].includes(selectedReport.type) ? selectedReport.total_amount : selectedReport.net_amount))?.toLocaleString()}
                             </span>
                           </div>
 
@@ -614,7 +682,7 @@ const Reports = () => {
                           </div>
                           <div>
                             <p className="text-[8px] font-black text-slate-400 uppercase tracking-[0.2em] mb-0.5">Settlement Date</p>
-                            <p className="text-xs font-black text-slate-800 uppercase tracking-tight">{selectedReport.payment_date || 'TBD'}</p>
+                            <p className="text-xs font-black text-slate-800 uppercase tracking-tight">{selectedReport.payment_date || selectedReport.date || 'TBD'}</p>
                           </div>
                         </div>
                         <div className="flex-1 p-5 bg-white ring-1 ring-slate-100 rounded-[1.5rem] shadow-sm hover:shadow-md transition-all group flex items-center gap-4">
@@ -897,6 +965,8 @@ const Reports = () => {
                       <TableRow>
                         <TableHead>Client Name</TableHead>
                         <TableHead>Industry</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Phone</TableHead>
                         <TableHead>Location</TableHead>
                         <TableHead className="text-right">Retainer</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
@@ -912,6 +982,8 @@ const Reports = () => {
                                 {client.industry || 'Other'}
                               </span>
                             </TableCell>
+                            <TableCell className="text-muted-foreground text-xs">{client.contact_email || '-'}</TableCell>
+                            <TableCell className="text-muted-foreground text-xs">{client.contact_phone || '-'}</TableCell>
                             <TableCell className="text-muted-foreground">{client.location || '-'}</TableCell>
                             <TableCell className="text-right text-muted-foreground">
                               ₹{client.monthly_retainer?.toLocaleString() || '0'}
@@ -1042,6 +1114,7 @@ const Reports = () => {
                         <TableHead className="text-right">Amount</TableHead>
                         <TableHead>Method</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1066,11 +1139,21 @@ const Reports = () => {
                                 {item.status?.toUpperCase()}
                               </span>
                             </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSelectedReport({ ...item, type: 'income' })}
+                                className="h-7 px-2 text-xs"
+                              >
+                                View
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-4 text-muted-foreground">
+                          <TableCell colSpan={8} className="text-center py-4 text-muted-foreground">
                             No income records found for this period.
                           </TableCell>
                         </TableRow>
@@ -1112,6 +1195,7 @@ const Reports = () => {
                         <TableHead className="text-right">Amount</TableHead>
                         <TableHead>Method</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1136,11 +1220,21 @@ const Reports = () => {
                                 {item.status?.toUpperCase()}
                               </span>
                             </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSelectedReport({ ...item, type: 'expense' })}
+                                className="h-7 px-2 text-xs"
+                              >
+                                View
+                              </Button>
+                            </TableCell>
                           </TableRow>
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-4 text-muted-foreground">
+                          <TableCell colSpan={8} className="text-center py-4 text-muted-foreground">
                             No expense records found for this period.
                           </TableCell>
                         </TableRow>

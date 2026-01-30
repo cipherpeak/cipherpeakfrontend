@@ -247,8 +247,9 @@ const AddEventModal = ({
         location: formData.location,
         status: formData.status,
         duration_minutes: parseInt(formData.duration_minutes) || 60,
-        event_date: format(eventDate, 'yyyy-MM-dd'),
-        start_time: startTime,
+        event_date: `${format(eventDate, 'yyyy-MM-dd')}T${startTime}:00`,
+        is_recurring: formData.is_recurring === 'true',
+        recurrence_pattern: formData.recurrence_pattern,
       };
 
       console.log("Saving event with payload:", payload);

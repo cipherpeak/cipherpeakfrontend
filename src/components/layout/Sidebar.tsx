@@ -36,7 +36,7 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
   return (
     <div
       className={cn(
-        'h-full bg-card border-r border-border transition-all duration-300 relative',
+        'h-full bg-card border-r border-border transition-all duration-300 relative z-50 overflow-visible',
         isCollapsed ? 'w-16' : 'w-64'
       )}
     >
