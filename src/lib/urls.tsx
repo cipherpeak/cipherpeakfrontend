@@ -53,6 +53,10 @@ export const requests = {
     LeaveDetail: (id: number | string) => `auth/leaves/${id}/`,
     LeaveProcess: (id: number | string) => `auth/leaves/${id}/process/`,
 
+    // Leave Management API (Admin)
+    AdminLeaveList: 'leaves-api/leaves/',
+    AdminLeaveProcess: (id: number | string) => `leaves-api/leaves/${id}/process/`,
+
     // Salary Payment API
     SalaryPaymentList: 'auth/salary-payment-history/',
     ProcessSalaryPayment: (id: number) => `auth/process-salary-payment/${id}/`,

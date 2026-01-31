@@ -12,17 +12,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Moon, Sun, User, Settings, LogOut, Bell, Calendar } from 'lucide-react';
+import { Moon, Sun, User, Settings, LogOut, Bell, Calendar, FileText } from 'lucide-react';
 import logo from "../../assets/cipher_peak full.png"
 import { logout } from '../../Redux/slices/authSlice';
 import axiosInstance from '../../axios/axios';
 import { requests } from '../../lib/urls';
 
 interface NavbarProps {
-  onNavigateToLeaveManagement?: () => void;
 }
 
-const Navbar = ({ onNavigateToLeaveManagement }: NavbarProps) => {
+const Navbar = ({ }: NavbarProps) => {
   const [notifications] = useState(3);
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -82,11 +81,6 @@ const Navbar = ({ onNavigateToLeaveManagement }: NavbarProps) => {
             <DropdownMenuItem>
               <User className="mr-2 h-4 w-4" />
               <span>Profile</span>
-            </DropdownMenuItem>
-            {/* Add Leave Management Option */}
-            <DropdownMenuItem onClick={onNavigateToLeaveManagement}>
-              <Calendar className="mr-2 h-4 w-4" />
-              <span>Leave Management</span>
             </DropdownMenuItem>
             <DropdownMenuItem>
               <Settings className="mr-2 h-4 w-4" />

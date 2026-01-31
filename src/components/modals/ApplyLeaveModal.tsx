@@ -216,7 +216,7 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
           <div className="grid gap-6 py-4">
             {/* Leave Category */}
             <div className="grid gap-2">
-              <Label htmlFor="category" className="text-sm font-medium">
+              <Label htmlFor="category" className="text-[11px] font-bold text-gray-400 uppercase tracking-tight">
                 Category of Leave *
               </Label>
               <Select
@@ -239,7 +239,7 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
             {/* Date Range */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="grid gap-2">
-                <Label className="text-sm font-medium">From Date *</Label>
+                <Label className="text-[11px] font-bold text-gray-400 uppercase tracking-tight">From Date *</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -266,7 +266,7 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
               </div>
 
               <div className="grid gap-2">
-                <Label className="text-sm font-medium">To Date *</Label>
+                <Label className="text-[11px] font-bold text-gray-400 uppercase tracking-tight">To Date *</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
@@ -295,7 +295,7 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
 
             {/* Total Days */}
             <div className="grid gap-2">
-              <Label htmlFor="totalDays" className="text-sm font-medium">
+              <Label htmlFor="totalDays" className="text-[11px] font-bold text-gray-400 uppercase tracking-tight">
                 Total Number of Leave Days
               </Label>
               <Input
@@ -312,7 +312,7 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
 
             {/* Reason for Leave */}
             <div className="grid gap-2">
-              <Label htmlFor="reason" className="text-sm font-medium">
+              <Label htmlFor="reason" className="text-[11px] font-bold text-gray-400 uppercase tracking-tight">
                 Reason for Leave *
               </Label>
               <Textarea
@@ -328,26 +328,26 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
 
             {/* Attach Media */}
             <div className="grid gap-2">
-              <Label htmlFor="attachment" className="text-sm font-medium">
+              <Label htmlFor="attachment" className="text-[11px] font-bold text-gray-400 uppercase tracking-tight">
                 Attach Supporting Documents
               </Label>
               {formData.attachment ? (
-                <div className="flex items-center justify-between p-3 border rounded-lg bg-muted/50">
-                  <div className="flex items-center gap-3">
-                    <Paperclip className="h-4 w-4 text-primary" />
-                    <div>
-                      <p className="text-sm font-medium">{formData.attachment.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {(formData.attachment.size / 1024).toFixed(2)} KB
-                      </p>
-                    </div>
+                <div className="flex items-center gap-4 p-4 bg-[#f8fbff] rounded-lg border border-[#edf3f9]">
+                  <div className="w-10 h-10 rounded-full bg-[#e3f2fd] flex items-center justify-center shrink-0">
+                    <FileText className="h-5 w-5 text-[#42a5f5]" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-[13px] font-bold text-[#333]">{formData.attachment.name}</p>
+                    <p className="text-[11px] font-semibold text-gray-400">
+                      {(formData.attachment.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
                   </div>
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
                     onClick={handleRemoveFile}
-                    className="h-8 w-8 p-0"
+                    className="h-8 w-8 p-0 rounded-lg bg-white border-[#edf3f9] text-gray-400 shadow-sm hover:text-[#42a5f5]"
                   >
                     <X className="h-4 w-4" />
                   </Button>

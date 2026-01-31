@@ -21,6 +21,7 @@ import NotFound from "./pages/NotFound";
 import PrivateRoute from "./lib/PrivateRoute";
 import Dolla from "./pages/Dolla";
 import LeaveManagement from "./pages/LeaveManagement";
+import LeaveApplications from "./pages/LeaveApplications";
 import Verification from "./pages/Verification";
 import ClientDetails from "./pages/ClientDetails";
 import Reports from "./pages/Reports";
@@ -92,6 +93,15 @@ const App = () => (
               element={
                 <PrivateRoute>
                   <LeaveManagement />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="leave-applications"
+              element={
+                <PrivateRoute>
+                  <LeaveApplications />
                 </PrivateRoute>
               }
             />

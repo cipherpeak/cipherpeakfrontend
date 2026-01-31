@@ -17,12 +17,9 @@ const Layout = () => {
   const toggleSidebar = () => {
     setIsCollapsed(!isCollapsed);
   };
-  const handleNavigateToLeaveManagement = () => {
-    navigate('/leave-management');
-  };
   return (
     <div className="min-h-screen bg-background">
-      <Navbar onNavigateToLeaveManagement={handleNavigateToLeaveManagement} />
+      <Navbar />
       <div className="flex h-[calc(100vh-4rem)]">
         <Sidebar isCollapsed={isCollapsed} onToggle={toggleSidebar} />
         <main className="flex-1 overflow-auto p-6">

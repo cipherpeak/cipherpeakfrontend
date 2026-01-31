@@ -12,6 +12,8 @@ import {
   ChevronRight,
   IndianRupee,
   CheckCircle2,
+  CalendarDays,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -26,7 +28,8 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
     { icon: Users, label: 'Employees', path: '/employees' },
     { icon: UserCheck, label: 'Clients', path: '/clients' },
     { icon: CheckSquare, label: 'Tasks', path: '/tasks' },
-    { icon: Calendar, label: 'Calendar', path: '/calendar' },
+    { icon: CalendarDays, label: 'Leave Management', path: '/leave-management' },
+    { icon: FileSpreadsheet, label: 'Leave Applications', path: '/leave-applications' },
     { icon: IndianRupee, label: 'Dolla', path: '/dolla' },
     { icon: CheckCircle2, label: 'Verification', path: '/verification' },
     { icon: BarChart3, label: 'Reports', path: '/reports' },

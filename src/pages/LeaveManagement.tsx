@@ -71,6 +71,7 @@ const LeaveManagement = () => {
 
   // Robust admin check
   const isAdmin = user && (
+    user.is_superuser ||
     (typeof user.role === 'string' && ['admin', 'hr', 'manager', 'director'].includes(user.role)) ||
     (typeof user === 'object' && 'role' in user && ['admin', 'hr', 'manager', 'director'].includes((user as any).role))
   );
