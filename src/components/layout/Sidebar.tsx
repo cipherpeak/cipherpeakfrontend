@@ -1,6 +1,13 @@
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
+  CalendarIcon,
+  Loader2,
+  Upload,
+  User,
+  X,
+  CheckCircle2,
+  AlertCircle,
   LayoutDashboard,
   Users,
   UserCheck,
@@ -11,11 +18,13 @@ import {
   ChevronLeft,
   ChevronRight,
   IndianRupee,
-  CheckCircle2,
+  CheckCircle2 as CheckCircleIcon,
   CalendarDays,
   FileSpreadsheet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/Redux/Store';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -23,6 +32,8 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
+  const user = useSelector((state: RootState) => state.auth.user);
+
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
     { icon: Users, label: 'Employees', path: '/employees' },
@@ -31,10 +42,20 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
     { icon: CalendarDays, label: 'Leave Management', path: '/leave-management' },
     { icon: FileSpreadsheet, label: 'Leave Applications', path: '/leave-applications' },
     { icon: IndianRupee, label: 'Dolla', path: '/dolla' },
-    { icon: CheckCircle2, label: 'Verification', path: '/verification' },
+    { icon: CheckCircleIcon, label: 'Verification', path: '/verification' },
     { icon: BarChart3, label: 'Reports', path: '/reports' },
     { icon: Settings, label: 'Settings', path: '/settings' },
   ];
+
+  const filteredNavItems = navItems.filter((item) => {
+    if (item.path === '/leave-applications') {
+      return user === 'admin' || user === 'superuser';
+    }
+    if (item.path === '/leave-management') {
+      return user !== 'admin' && user !== 'superuser';
+    }
+    return true;
+  });
 
   return (
     <div
@@ -60,7 +81,7 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
       {/* Navigation */}
       <nav className="mt-8 px-3">
         <ul className="space-y-2">
-          {navItems.map((item) => (
+          {filteredNavItems.map((item) => (
             <li key={item.path}>
               <NavLink
                 to={item.path}

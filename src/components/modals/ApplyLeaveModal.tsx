@@ -25,7 +25,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { CalendarIcon, Paperclip, X } from 'lucide-react';
+import { CalendarIcon, Paperclip, X, FileText, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { requests } from '@/lib/urls';
@@ -49,6 +49,7 @@ export interface LeaveFormData {
   totalDays: number;
   reason: string;
   attachment: File | null;
+  addressDuringLeave: string;
 }
 
 const leaveCategories = [
@@ -70,6 +71,7 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
     totalDays: 0,
     reason: '',
     attachment: null,
+    addressDuringLeave: '',
   });
 
 
@@ -82,6 +84,7 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
         toDate: leaveToEdit.toDate ? new Date(leaveToEdit.toDate) : undefined,
         totalDays: parseFloat(leaveToEdit.totalDays) || 0,
         reason: leaveToEdit.reason || '',
+        addressDuringLeave: leaveToEdit.address_during_leave || '',
         attachment: null, // We typically don't set file input values from URL
       });
     } else if (mode === 'apply' && open) {
@@ -92,6 +95,7 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
         totalDays: 0,
         reason: '',
         attachment: null,
+        addressDuringLeave: '',
       });
     }
   }, [mode, leaveToEdit, open]);
@@ -139,6 +143,7 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
       if (formData.toDate) data.append('end_date', format(formData.toDate, 'yyyy-MM-dd'));
       data.append('total_days', formData.totalDays.toString());
       data.append('reason', formData.reason);
+      data.append('address_during_leave', formData.addressDuringLeave);
       if (formData.attachment) {
         data.append('attachment', formData.attachment);
       }
@@ -175,6 +180,7 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
         totalDays: 0,
         reason: '',
         attachment: null,
+        addressDuringLeave: '',
       });
       onOpenChange(false);
     } catch (error: any) {
@@ -293,6 +299,8 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
               </div>
             </div>
 
+
+
             {/* Total Days */}
             <div className="grid gap-2">
               <Label htmlFor="totalDays" className="text-[11px] font-bold text-gray-400 uppercase tracking-tight">
@@ -324,6 +332,21 @@ const ApplyLeaveModal = ({ open, onOpenChange, onApplyLeave, onSuccess, mode = '
                 required
               />
             </div>
+
+            {/* Address During Leave */}
+            <div className="grid gap-2">
+              <Label htmlFor="address" className="text-[11px] font-bold text-gray-400 uppercase tracking-tight">
+                Address During Leave
+              </Label>
+              <Textarea
+                id="address"
+                placeholder="Enter your address during leave..."
+                value={formData.addressDuringLeave}
+                onChange={(e) => setFormData(prev => ({ ...prev, addressDuringLeave: e.target.value }))}
+                className="min-h-[80px]"
+              />
+            </div>
+
 
 
             {/* Attach Media */}

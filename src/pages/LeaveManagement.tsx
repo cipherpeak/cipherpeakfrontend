@@ -271,101 +271,6 @@ const LeaveManagement = () => {
   const totalUsedLeaves = leaveBalances.reduce((sum, balance) => sum + (Number(balance.used) || 0), 0);
   const totalRemainingLeaves = leaveBalances.reduce((sum, balance) => sum + (Number(balance.remaining) || 0), 0);
 
-  const LeaveTable = ({ requests, isAdmin, showActions }: { requests: LeaveRequest[], isAdmin: boolean, showActions: boolean }) => (
-    <div className="overflow-x-auto">
-      {loading ? (
-        <div className="flex items-center justify-center p-8">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="ml-2">Loading leave requests...</span>
-        </div>
-      ) : requests.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-8 text-muted-foreground opacity-60">
-          <AlertCircle className="h-10 w-10 mb-2" />
-          <p>No leave requests found.</p>
-        </div>
-      ) : (
-        <Table>
-          <TableHeader>
-            <TableRow className="bg-muted/50">
-              {isAdmin && <TableHead>Employee</TableHead>}
-              <TableHead>Leave Type</TableHead>
-              <TableHead>Date Range</TableHead>
-              <TableHead>Duration</TableHead>
-              <TableHead>Applied On</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {requests.map((leave) => (
-              <TableRow key={leave.id} className="hover:bg-muted/30 transition-colors">
-                {isAdmin && (
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="font-medium text-sm">{leave.employeeName}</span>
-                      <span className="text-xs text-muted-foreground">{leave.employeeId}</span>
-                    </div>
-                  </TableCell>
-                )}
-                <TableCell>
-                  <Badge variant="outline" className={cn("font-normal text-[10px]", getCategoryColor(leave.category))}>
-                    {leave.category}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-sm whitespace-nowrap">
-                      {formatDate(leave.fromDate)} - {formatDate(leave.toDate)}
-                    </span>
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <span className="font-medium text-sm">{leave.totalDays} days</span>
-                </TableCell>
-                <TableCell>
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">
-                    {formatDate(leave.appliedDate)}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  {getStatusBadge(leave.status)}
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center justify-end gap-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleViewDetails(leave)}
-                      className="h-8 w-8 p-0 hover:bg-muted"
-                      title="View Details"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </Button>
-                    {(isAdmin || leave.status === 'pending') && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleEditLeave(leave);
-                        }}
-                        className="h-8 w-8 p-0 hover:bg-muted"
-                        title="Edit Request"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-    </div>
-  );
-
   return (
     <div className="space-y-6 p-4 md:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -455,7 +360,13 @@ const LeaveManagement = () => {
           </div>
           <Card>
             <CardContent className="p-0">
-              <LeaveTable requests={leaveRequests} isAdmin={!!isAdmin} showActions={true} />
+              <LeaveTable
+                requests={leaveRequests}
+                isAdmin={!!isAdmin}
+                loading={loading}
+                onViewDetails={handleViewDetails}
+                onEditLeave={handleEditLeave}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -568,7 +479,13 @@ const LeaveManagement = () => {
           <h2 className="text-xl font-semibold">{isAdmin ? 'All Leave History' : 'My Leave History'}</h2>
           <Card>
             <CardContent className="p-0">
-              <LeaveTable requests={leaveRequests} isAdmin={!!isAdmin} showActions={true} />
+              <LeaveTable
+                requests={leaveRequests}
+                isAdmin={!!isAdmin}
+                loading={loading}
+                onViewDetails={handleViewDetails}
+                onEditLeave={handleEditLeave}
+              />
             </CardContent>
           </Card>
         </TabsContent>
@@ -594,3 +511,151 @@ const LeaveManagement = () => {
 };
 
 export default LeaveManagement;
+
+interface LeaveTableProps {
+  requests: LeaveRequest[];
+  isAdmin: boolean;
+  loading: boolean;
+  onViewDetails: (leave: LeaveRequest) => void;
+  onEditLeave: (leave: LeaveRequest) => void;
+}
+
+const getCategoryColor = (category: string) => {
+  const colors: Record<string, string> = {
+    'Annual Leave': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
+    'Sick Leave': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
+    'Maternity Leave': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
+    'Paternity Leave': 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-300',
+    'Emergency Leave': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
+  };
+  return colors[category] || 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
+};
+
+const getStatusBadge = (status: LeaveRequest['status']) => {
+  switch (status) {
+    case 'approved':
+      return (
+        <Badge className="bg-green-100 text-green-800 hover:bg-green-100 dark:bg-green-900 dark:text-green-300">
+          <CheckCircle className="h-3 w-3 mr-1" />
+          Approved
+        </Badge>
+      );
+    case 'pending':
+      return (
+        <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100 dark:bg-yellow-900 dark:text-yellow-300">
+          <Clock className="h-3 w-3 mr-1" />
+          Pending
+        </Badge>
+      );
+    case 'rejected':
+      return (
+        <Badge className="bg-red-100 text-red-800 hover:bg-red-100 dark:bg-red-900 dark:text-red-300">
+          <XCircle className="h-3 w-3 mr-1" />
+          Rejected
+        </Badge>
+      );
+  }
+};
+
+const formatDate = (dateString: string) => {
+  try {
+    return format(new Date(dateString), 'MMM dd, yyyy');
+  } catch (e) {
+    return 'N/A';
+  }
+};
+
+const LeaveTable = ({ requests, isAdmin, loading, onViewDetails, onEditLeave }: LeaveTableProps) => (
+  <div className="overflow-x-auto">
+    {loading ? (
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Loading leave requests...</span>
+      </div>
+    ) : requests.length === 0 ? (
+      <div className="flex flex-col items-center justify-center p-8 text-muted-foreground opacity-60">
+        <AlertCircle className="h-10 w-10 mb-2" />
+        <p>No leave requests found.</p>
+      </div>
+    ) : (
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/50">
+            {isAdmin && <TableHead>Employee</TableHead>}
+            <TableHead>Leave Type</TableHead>
+            <TableHead>Date Range</TableHead>
+            <TableHead>Duration</TableHead>
+            <TableHead>Applied On</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {requests.map((leave) => (
+            <TableRow key={leave.id} className="hover:bg-muted/30 transition-colors">
+              {isAdmin && (
+                <TableCell>
+                  <div className="flex flex-col">
+                    <span className="font-medium text-sm">{leave.employeeName}</span>
+                    <span className="text-xs text-muted-foreground">{leave.employeeId}</span>
+                  </div>
+                </TableCell>
+              )}
+              <TableCell>
+                <Badge variant="outline" className={cn("font-normal text-[10px]", getCategoryColor(leave.category))}>
+                  {leave.category}
+                </Badge>
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-sm whitespace-nowrap">
+                    {formatDate(leave.fromDate)} - {formatDate(leave.toDate)}
+                  </span>
+                </div>
+              </TableCell>
+              <TableCell>
+                <span className="font-medium text-sm">{leave.totalDays} days</span>
+              </TableCell>
+              <TableCell>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  {formatDate(leave.appliedDate)}
+                </span>
+              </TableCell>
+              <TableCell>
+                {getStatusBadge(leave.status)}
+              </TableCell>
+              <TableCell>
+                <div className="flex items-center justify-end gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => onViewDetails(leave)}
+                    className="h-8 w-8 p-0 hover:bg-muted"
+                    title="View Details"
+                  >
+                    <Eye className="h-4 w-4" />
+                  </Button>
+                  {(isAdmin || leave.status === 'pending') && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditLeave(leave);
+                      }}
+                      className="h-8 w-8 p-0 hover:bg-muted"
+                      title="Edit Request"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    )}
+  </div>
+);

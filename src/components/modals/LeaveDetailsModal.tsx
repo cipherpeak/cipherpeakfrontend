@@ -2,6 +2,7 @@ import {
     Dialog,
     DialogContent,
     DialogHeader,
+    DialogFooter,
     DialogTitle,
     DialogDescription,
 } from '@/components/ui/dialog';
@@ -35,7 +36,6 @@ interface LeaveRequest {
     toDate: string;
     totalDays: number;
     reason: string;
-    reason: string;
     status: 'pending' | 'approved' | 'rejected';
     appliedDate: string;
     attachment?: string;
@@ -61,12 +61,15 @@ const LeaveDetailsModal = ({
 }: LeaveDetailsModalProps) => {
     const [remarks, setRemarks] = useState('');
     const [processing, setProcessing] = useState(false);
+    const [rejectionModalOpen, setRejectionModalOpen] = useState(false);
+    const [rejectionRemarks, setRejectionRemarks] = useState('');
     const { toast } = useToast();
 
     if (!leave) return null;
 
-    const handleProcessLeave = async (status: 'approved' | 'rejected') => {
-        if (!remarks.trim() && status === 'rejected') {
+    const handleProcessLeave = async (status: 'approved' | 'rejected', processRemarks?: string) => {
+        const finalRemarks = processRemarks || remarks;
+        if (!finalRemarks.trim() && status === 'rejected') {
             toast({
                 title: 'Remarks Required',
                 description: 'Please provide remarks when rejecting a leave request.',
@@ -79,7 +82,7 @@ const LeaveDetailsModal = ({
         try {
             await axiosInstance.post(requests.LeaveProcess(leave.id), {
                 status,
-                remarks
+                remarks: finalRemarks
             });
 
             toast({
@@ -87,6 +90,8 @@ const LeaveDetailsModal = ({
                 description: `The leave request has been successfully ${status}.`,
             });
             onStatusUpdate();
+            setRejectionModalOpen(false);
+            setRejectionRemarks('');
             onClose();
         } catch (error: any) {
             console.error('Error processing leave:', error);
@@ -233,39 +238,83 @@ const LeaveDetailsModal = ({
                 )}
 
                 {isAdmin && leave.status === 'pending' && (
-                    <div className="mt-6 space-y-4 border-t pt-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="remarks">Admin Remarks *</Label>
-                            <Textarea
-                                id="remarks"
-                                placeholder="Enter remarks for approval or rejection..."
-                                value={remarks}
-                                onChange={(e) => setRemarks(e.target.value)}
-                                className="min-h-[80px]"
-                            />
-                        </div>
-                        <div className="flex gap-3 justify-end">
-                            <Button
-                                variant="destructive"
-                                onClick={() => handleProcessLeave('rejected')}
-                                disabled={processing}
-                                className="gap-2"
-                            >
-                                {processing ? <Clock className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-                                Reject
-                            </Button>
-                            <Button
-                                onClick={() => handleProcessLeave('approved')}
-                                disabled={processing}
-                                className="gap-2 bg-green-600 hover:bg-green-700"
-                            >
-                                {processing ? <Clock className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-                                Approve
-                            </Button>
-                        </div>
+                    <div className="mt-6 flex gap-3 justify-end border-t pt-4">
+                        <Button
+                            variant="destructive"
+                            onClick={() => setRejectionModalOpen(true)}
+                            disabled={processing}
+                            className="gap-2"
+                        >
+                            {processing ? <Clock className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                            Reject
+                        </Button>
+                        <Button
+                            onClick={() => handleProcessLeave('approved')}
+                            disabled={processing}
+                            className="gap-2 bg-green-600 hover:bg-green-700"
+                        >
+                            {processing ? <Clock className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                            Approve
+                        </Button>
                     </div>
                 )}
             </DialogContent>
+
+            {/* Rejection Modal */}
+            <Dialog open={rejectionModalOpen} onOpenChange={setRejectionModalOpen}>
+                <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden border-none shadow-2xl rounded-2xl">
+                    <DialogHeader className="px-6 pt-6 pb-2">
+                        <DialogTitle className="text-lg font-bold text-[#1e1e1e]">Reject Leave Application</DialogTitle>
+                        <DialogDescription className="text-[13px] text-gray-500 font-medium">
+                            Please provide a reason for rejecting this leave application.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="px-6 py-4 space-y-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="rejectionRemarks" className="text-[11px] font-bold text-gray-400 uppercase tracking-tight">
+                                Reason for Rejection *
+                            </Label>
+                            <Textarea
+                                id="rejectionRemarks"
+                                placeholder="Enter reason for rejection..."
+                                value={rejectionRemarks}
+                                onChange={(e) => setRejectionRemarks(e.target.value)}
+                                className="min-h-[120px] resize-none border-gray-200 focus:border-[#d32f2f] focus:ring-[#d32f2f]/10 rounded-xl text-sm font-medium"
+                            />
+                        </div>
+                        <div className="flex items-start gap-3 p-3.5 bg-orange-50/50 rounded-xl border border-orange-100 mt-2">
+                            <AlertCircle className="h-4 w-4 text-orange-500 shrink-0 mt-0.5" />
+                            <p className="text-[11px] font-bold text-orange-700 leading-relaxed">
+                                Note: This action cannot be undone. The employee will be notified of the rejection.
+                            </p>
+                        </div>
+                    </div>
+                    <DialogFooter className="px-6 py-5 bg-gray-50/50 gap-3 border-t border-gray-100 sm:justify-end">
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setRejectionModalOpen(false);
+                                setRejectionRemarks('');
+                            }}
+                            className="h-10 px-6 rounded-xl border-gray-200 text-gray-600 font-bold text-xs uppercase shadow-sm hover:bg-gray-100"
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={() => handleProcessLeave('rejected', rejectionRemarks)}
+                            disabled={processing || !rejectionRemarks.trim()}
+                            className="h-10 px-8 bg-[#d32f2f] hover:bg-[#d32f2f]/90 text-white rounded-xl text-xs font-bold shadow-sm disabled:opacity-50"
+                        >
+                            {processing ? (
+                                <Clock className="h-3.5 w-3.5 mr-2 animate-spin" />
+                            ) : (
+                                <XCircle className="h-3.5 w-3.5 mr-2" />
+                            )}
+                            Reject Leave
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </Dialog>
     );
 };

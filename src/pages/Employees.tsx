@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -109,8 +110,22 @@ const getStatusColor = (status: string) => {
 
 const Employees = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const location = useLocation();
   const [isAddEmployeeModalOpen, setIsAddEmployeeModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<EmployeeDetails | null>(null);
+
+  // Handle navigation from other pages (e.g., from Leave Applications)
+  useEffect(() => {
+    if (location.state && location.state.openEmployeeId) {
+      const openId = location.state.openEmployeeId;
+      console.log("Navigated with ID:", openId);
+      // Directly fetch details for the passed ID
+      fetchEmployeeDetails(openId);
+
+      // Clear the state so refreshing doesn't re-trigger
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
   const [employeeToEdit, setEmployeeToEdit] = useState<Employee | null>(null);
   const [modalMode, setModalMode] = useState<'add' | 'edit'>('add');
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -118,6 +133,10 @@ const Employees = () => {
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('list');
+
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
 
   // Document/Media Upload State
   const [isDocUploadModalOpen, setIsDocUploadModalOpen] = useState(false);
@@ -932,7 +951,7 @@ const Employees = () => {
             <h3 className="text-lg font-semibold mb-4">Upload Document</h3>
             <form onSubmit={handleUploadDocument} className="space-y-4">
               {uploadError && <div className="text-red-500 text-sm">{uploadError}</div>}
-              
+
               <select
                 className="w-full p-2 border rounded-md dark:bg-gray-800"
                 value={docUploadForm.document_type}
@@ -954,7 +973,7 @@ const Employees = () => {
                 <option value="termination">Termination Letter</option>
                 <option value="other">Other</option>
               </select>
-              
+
               <Input
                 type="file"
                 onChange={e => setDocUploadForm({ ...docUploadForm, file: e.target.files?.[0] || null })}
@@ -976,7 +995,7 @@ const Employees = () => {
             <h3 className="text-lg font-semibold mb-4">Upload Media</h3>
             <form onSubmit={handleUploadMedia} className="space-y-4">
               {uploadError && <div className="text-red-500 text-sm">{uploadError}</div>}
-              
+
               <select
                 className="w-full p-2 border rounded-md dark:bg-gray-800"
                 value={mediaUploadForm.media_type}
@@ -993,7 +1012,7 @@ const Employees = () => {
                 <option value="award_certificate">Award Certificate</option>
                 <option value="other">Other</option>
               </select>
-              
+
               <Input
                 type="file"
                 onChange={e => setMediaUploadForm({ ...mediaUploadForm, file: e.target.files?.[0] || null })}
