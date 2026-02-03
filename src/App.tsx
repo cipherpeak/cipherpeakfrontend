@@ -8,6 +8,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { useSelector } from "react-redux";
+import { RootState } from "./Redux/Store";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Layout from "./components/layout/Layout";
 import Login from "./pages/Login";
@@ -15,7 +17,9 @@ import Dashboard from "./pages/Dashboard";
 import Employees from "./pages/Employees";
 import Clients from "./pages/Clients";
 import Tasks from "./pages/Tasks";
+import EmployeeTasks from "./pages/EmployeeTasks";
 import Calendar from "./pages/Calendar";
+import EmployeeCalendar from "./pages/EmployeeCalendar";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import PrivateRoute from "./lib/PrivateRoute";
@@ -29,6 +33,18 @@ import ClientReportDetail from "./pages/ClientReportDetail";
 import EmployeeReportDetail from "./pages/EmployeeReportDetail";
 
 const queryClient = new QueryClient();
+
+const TaskPageRoute = () => {
+  const userRole = useSelector((state: RootState) => state.auth.user);
+  const isAdmin = userRole === 'admin' || userRole === 'superuser';
+  return isAdmin ? <Tasks /> : <EmployeeTasks />;
+};
+
+const CalendarPageRoute = () => {
+  const userRole = useSelector((state: RootState) => state.auth.user);
+  const isAdmin = userRole === 'admin' || userRole === 'superuser';
+  return isAdmin ? <Calendar /> : <EmployeeCalendar />;
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -67,7 +83,7 @@ const App = () => (
               path="tasks"
               element={
                 <PrivateRoute>
-                  <Tasks />
+                  <TaskPageRoute />
                 </PrivateRoute>
               }
             />
@@ -75,7 +91,7 @@ const App = () => (
               path="calendar"
               element={
                 <PrivateRoute>
-                  <Calendar />
+                  <CalendarPageRoute />
                 </PrivateRoute>
               }
             />

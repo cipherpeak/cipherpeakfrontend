@@ -42,12 +42,22 @@ const Login = () => {
         password,
       });
 
-      console.log("Login successful:", response.data);
+      console.log("FULL LOGIN RESPONSE:", response.data);
+      console.log("User Info Object:", response.data.user_info);
+
+      // Ensure userInfo has an ID
+      const userInfo = response.data.user_info || {};
+      if (!userInfo.id) {
+        // Try common variations
+        userInfo.id = response.data.user_id || response.data.id || response.data.pk || userInfo.pk || userInfo.user_id;
+        console.log("Patched UserInfo ID:", userInfo.id);
+      }
 
       // Dispatch login success
       dispatch(
         loginSuccess({
           user: response.data.user,
+          userInfo: userInfo,
           access_token: response.data.access,
           refresh_token: response.data.refresh,
         })

@@ -308,7 +308,11 @@ const Reports = () => {
             </h2>
             {selectedReport.no_data && (
               <Badge variant="destructive" className="font-black animate-pulse shadow-sm">
-                NO RECORD FOR {months.find(m => m.value === selectedMonth)?.label?.toUpperCase()} {selectedYear}
+                {selectedReport.type === 'employee'
+                  ? `SALARY NOT PROCESSED FOR ${months.find(m => m.value === selectedMonth)?.label?.toUpperCase()} ${selectedYear}`
+                  : selectedReport.type === 'client'
+                    ? `PAYMENT NOT PROCESSED FOR ${months.find(m => m.value === selectedMonth)?.label?.toUpperCase()} ${selectedYear}`
+                    : `NO RECORD FOR ${months.find(m => m.value === selectedMonth)?.label?.toUpperCase()} ${selectedYear}`}
               </Badge>
             )}
           </div>
@@ -1002,8 +1006,10 @@ const Reports = () => {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center py-4 text-muted-foreground">
-                            No client reports found for this period.
+                          <TableCell colSpan={7} className="text-center py-4 text-muted-foreground italic font-medium">
+                            No client payment has been processed for {months.find(m => m.value === selectedMonth)?.label} {selectedYear}.
+                            <br />
+                            <span className="text-xs opacity-70">The detailed report will be generated once the payment is marked as processed.</span>
                           </TableCell>
                         </TableRow>
                       )}
@@ -1072,8 +1078,10 @@ const Reports = () => {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-4 text-muted-foreground">
-                            No employee reports found for this period.
+                          <TableCell colSpan={7} className="text-center py-4 text-muted-foreground italic font-medium">
+                            No employee salary has been processed for {months.find(m => m.value === selectedMonth)?.label} {selectedYear}.
+                            <br />
+                            <span className="text-xs opacity-70">The report will be available once the salary is processed.</span>
                           </TableCell>
                         </TableRow>
                       )}

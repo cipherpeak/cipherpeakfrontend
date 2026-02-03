@@ -39,21 +39,35 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
     { icon: Users, label: 'Employees', path: '/employees' },
     { icon: UserCheck, label: 'Clients', path: '/clients' },
     { icon: CheckSquare, label: 'Tasks', path: '/tasks' },
+    { icon: Calendar, label: 'Calendar', path: '/calendar' },
     { icon: CalendarDays, label: 'Leave Management', path: '/leave-management' },
     { icon: FileSpreadsheet, label: 'Leave Applications', path: '/leave-applications' },
     { icon: IndianRupee, label: 'Dolla', path: '/dolla' },
     { icon: CheckCircleIcon, label: 'Verification', path: '/verification' },
     { icon: BarChart3, label: 'Reports', path: '/reports' },
-    { icon: Settings, label: 'Settings', path: '/settings' },
   ];
 
   const filteredNavItems = navItems.filter((item) => {
-    if (item.path === '/leave-applications') {
-      return user === 'admin' || user === 'superuser';
+    const isAdmin = user === 'admin' || user === 'superuser';
+
+    // Admin-only paths
+    const adminOnlyPaths = [
+      '/employees',
+      '/clients',
+      '/dolla',
+      '/verification',
+      '/reports',
+      '/leave-applications'
+    ];
+
+    if (adminOnlyPaths.includes(item.path)) {
+      return isAdmin;
     }
+
     if (item.path === '/leave-management') {
-      return user !== 'admin' && user !== 'superuser';
+      return !isAdmin;
     }
+
     return true;
   });
 

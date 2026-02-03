@@ -20,7 +20,7 @@ export const requests = {
     TaskDetail: (id: number) => `tasks/task_details/${id}/`,
     TaskUpdate: (id: number) => `tasks/update-task/${id}/`,
     TaskDelete: (id: number) => `tasks/task/${id}/delete/`,
-    TaskStatusUpdate: (id: number) => `tasks/create/${id}/status/`,
+    TaskStatusUpdate: (id: number) => `tasks/task/${id}/status/`,
     TaskStats: 'tasks/stats/',
     MyTasks: 'tasks/my-tasks/',
     TasksCreatedByMe: 'tasks/created-by-me/',

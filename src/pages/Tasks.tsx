@@ -1,4 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/Redux/Store';
+import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -141,16 +144,17 @@ const Tasks = () => {
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
   const { toast } = useToast();
+  const userRole = useSelector((state: RootState) => state.auth.user);
+  const userInfo = useSelector((state: RootState) => state.auth.userInfo);
+  const isAdmin = userRole === 'admin' || userRole === 'superuser';
 
   const fetchTasks = async () => {
     setLoading(true);
     setError(null);
     try {
       let endpoint = requests.TaskList;
-
       const response = await axiosInstance.get(endpoint);
       console.log("Tasks API Response:", response.data);
-
       const data = response.data;
 
       if (Array.isArray(data)) {
@@ -182,7 +186,7 @@ const Tasks = () => {
       toast({
         title: 'Error',
         description: 'Failed to load tasks',
-        variant: 'destructive'
+        variant: 'destructive',
       });
       setTasks([]);
     } finally {
@@ -924,8 +928,6 @@ const Tasks = () => {
                       </CardContent>
                     </Card>
                   </TabsContent>
-
-                  {/* Client Tab */}
                   <TabsContent value="client" className="space-y-6 mt-6">
                     {selectedTask.client_details ? (
                       <Card>

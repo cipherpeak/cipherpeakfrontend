@@ -16,6 +16,7 @@ const loadState = () => {
 
 const initialState = loadState() || {
   user: null,
+  userInfo: null,
   token: null,
   refresh: null,
   loading: false,
@@ -26,13 +27,14 @@ const authSlice = createSlice({
   name: "auth",
   initialState,
   reducers: {
-    startLoading: (state,action) => {
+    startLoading: (state, action) => {
       state.loading = action.payload;
     },
 
     loginSuccess: (state, action) => {
-      const { user,access_token,refresh_token } = action.payload;
+      const { user, userInfo, access_token, refresh_token } = action.payload;
       state.user = user;
+      state.userInfo = userInfo;
       state.refresh = refresh_token;
       state.token = access_token;
     },
@@ -45,6 +47,7 @@ const authSlice = createSlice({
 
     logout: (state) => {
       state.user = null;
+      state.userInfo = null;
       state.token = null;
       state.refresh = null;
       state.loading = false;

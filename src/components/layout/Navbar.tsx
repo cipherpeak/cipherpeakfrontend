@@ -1,7 +1,7 @@
 // Update your Navbar component to add Leave Management option
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
@@ -12,11 +12,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Moon, Sun, User, Settings, LogOut, Bell, Calendar, FileText } from 'lucide-react';
+import { Moon, Sun, User, LogOut, Bell, Calendar, FileText } from 'lucide-react';
 import logo from "../../assets/cipher_peak full.png"
 import { logout } from '../../Redux/slices/authSlice';
 import axiosInstance from '../../axios/axios';
 import { requests } from '../../lib/urls';
+import { RootState } from '../../Redux/Store';
 
 interface NavbarProps {
 }
@@ -25,6 +26,19 @@ const Navbar = ({ }: NavbarProps) => {
   const [notifications] = useState(3);
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const userInfo = useSelector((state: RootState) => state.auth.userInfo);
+
+  const getFullName = () => {
+    if (!userInfo) return "Guest User";
+    return `${userInfo.first_name || ''} ${userInfo.last_name || ''}`.trim() || userInfo.username || "User";
+  };
+
+  const getInitials = () => {
+    if (!userInfo) return "GU";
+    const first = userInfo.first_name?.[0] || '';
+    const last = userInfo.last_name?.[0] || '';
+    return (first + last).toUpperCase() || userInfo.username?.[0]?.toUpperCase() || "U";
+  };
 
   const handleLogout = async () => {
     try {
@@ -65,26 +79,24 @@ const Navbar = ({ }: NavbarProps) => {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="relative h-8 w-8 rounded-full">
               <Avatar className="h-8 w-8">
-                <AvatarImage src="/placeholder-avatar.jpg" alt="User" />
-                <AvatarFallback className="bg-[#4D4D4D] hover:bg-[#4D4D4D] hover:text-[#ffff] text-white">JD</AvatarFallback>
+                <AvatarImage src={userInfo?.profile_image_url || "/placeholder-avatar.jpg"} alt="User" />
+                <AvatarFallback className="bg-[#4D4D4D] hover:bg-[#4D4D4D] hover:text-[#ffff] text-white">
+                  {getInitials()}
+                </AvatarFallback>
               </Avatar>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-56" align="end" forceMount>
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium leading-none">John Doe</p>
-                <p className="text-xs leading-none text-muted-foreground">john@company.com</p>
+                <p className="text-sm font-medium leading-none">{getFullName()}</p>
+                <p className="text-xs leading-none text-muted-foreground">{userInfo?.email || 'No email'}</p>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
               <User className="mr-2 h-4 w-4" />
               <span>Profile</span>
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Settings className="mr-2 h-4 w-4" />
-              <span>Settings</span>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
