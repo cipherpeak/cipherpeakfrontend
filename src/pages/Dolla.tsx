@@ -31,7 +31,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Plus,
-  Edit,
+  Eye,
   Trash2,
   TrendingUp,
   TrendingDown,
@@ -184,6 +184,7 @@ const Dolla: React.FC = () => {
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [isViewing, setIsViewing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
@@ -590,6 +591,7 @@ const Dolla: React.FC = () => {
             <Button
               className="gap-2"
               onClick={() => {
+                setIsViewing(false);
                 if (activeTab === 'income') {
                   resetIncomeForm();
                   setIncomeDialogOpen(true);
@@ -742,7 +744,7 @@ const Dolla: React.FC = () => {
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-semibold">Income Records</h3>
                   <Button
-                    onClick={() => { resetIncomeForm(); setIncomeDialogOpen(true); }}
+                    onClick={() => { setIsViewing(false); resetIncomeForm(); setIncomeDialogOpen(true); }}
                     className="gap-2"
                     disabled={incomeLoading}
                   >
@@ -759,27 +761,25 @@ const Dolla: React.FC = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Type</TableHead>
                         <TableHead>Client</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Remarks</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {incomeLoading ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8">
+                          <TableCell colSpan={6} className="text-center py-8">
                             <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                             <p className="text-sm text-muted-foreground mt-2">Loading incomes...</p>
                           </TableCell>
                         </TableRow>
                       ) : filteredIncomes.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8 text-slate-500">
+                          <TableCell colSpan={6} className="text-center py-8 text-slate-500">
                             <FileText className="h-12 w-12 mx-auto mb-3 text-slate-300" />
                             <div>No income records found</div>
                             <Button
@@ -795,7 +795,6 @@ const Dolla: React.FC = () => {
                       ) : (
                         filteredIncomes.map((income) => (
                           <TableRow key={income.id}>
-                            <TableCell className="font-medium">{income.type_display || formatType(income.type)}</TableCell>
                             <TableCell>{income.client_name || '-'}</TableCell>
                             <TableCell>
                               <Badge variant="outline" className="bg-green-50 text-green-700">
@@ -816,19 +815,19 @@ const Dolla: React.FC = () => {
                                 {income.payment_status_display || formatType(income.payment_status)}
                               </Badge>
                             </TableCell>
-                            <TableCell className="max-w-xs truncate" title={income.remarks}>
-                              {income.remarks}
-                            </TableCell>
+
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => handleEditIncome(income)}
-                                  disabled={income.type === 'client_payment'}
-                                  title={income.type === 'client_payment' ? 'Client Payments cannot be edited here' : 'Edit income'}
+                                  onClick={() => {
+                                    setIsViewing(true);
+                                    handleEditIncome(income);
+                                  }}
+                                  title="View income"
                                 >
-                                  <Edit className="h-3 w-3" />
+                                  <Eye className="h-3 w-3" />
                                 </Button>
                                 <Button
                                   variant="outline"
@@ -854,7 +853,7 @@ const Dolla: React.FC = () => {
                 <div className="flex justify-between items-center">
                   <h3 className="text-lg font-semibold">Expense Records</h3>
                   <Button
-                    onClick={() => { resetExpenseForm(); setExpenseDialogOpen(true); }}
+                    onClick={() => { setIsViewing(false); resetExpenseForm(); setExpenseDialogOpen(true); }}
                     className="gap-2"
                     disabled={expenseLoading}
                   >
@@ -871,27 +870,25 @@ const Dolla: React.FC = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Type</TableHead>
                         <TableHead>Vendor</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead className="text-right">Amount</TableHead>
                         <TableHead>Date</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Remarks</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {expenseLoading ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8">
+                          <TableCell colSpan={6} className="text-center py-8">
                             <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                             <p className="text-sm text-muted-foreground mt-2">Loading expenses...</p>
                           </TableCell>
                         </TableRow>
                       ) : filteredExpenses.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center py-8 text-slate-500">
+                          <TableCell colSpan={6} className="text-center py-8 text-slate-500">
                             <FileText className="h-12 w-12 mx-auto mb-3 text-slate-300" />
                             <div>No expense records found</div>
                             <Button
@@ -907,7 +904,6 @@ const Dolla: React.FC = () => {
                       ) : (
                         filteredExpenses.map((expense) => (
                           <TableRow key={expense.id}>
-                            <TableCell className="font-medium">{expense.type_display || formatType(expense.type)}</TableCell>
                             <TableCell>{expense.vendor_name || '-'}</TableCell>
                             <TableCell>
                               <Badge variant="outline" className="bg-red-50 text-red-700">
@@ -928,19 +924,19 @@ const Dolla: React.FC = () => {
                                 {expense.payment_status_display || formatType(expense.payment_status)}
                               </Badge>
                             </TableCell>
-                            <TableCell className="max-w-xs truncate" title={expense.remarks}>
-                              {expense.remarks}
-                            </TableCell>
+
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  onClick={() => handleEditExpense(expense)}
-                                  disabled={expense.type === 'employee_salaries'}
-                                  title={expense.type === 'employee_salaries' ? 'Salary Payments cannot be edited here' : 'Edit expense'}
+                                  onClick={() => {
+                                    setIsViewing(true);
+                                    handleEditExpense(expense);
+                                  }}
+                                  title="View expense"
                                 >
-                                  <Edit className="h-3 w-3" />
+                                  <Eye className="h-3 w-3" />
                                 </Button>
                                 <Button
                                   variant="outline"
@@ -970,10 +966,10 @@ const Dolla: React.FC = () => {
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>
-              {editingIncome ? 'Edit Income' : 'Add New Income'}
+              {isViewing ? 'View Income Details' : (editingIncome ? 'Edit Income' : 'Add New Income')}
             </DialogTitle>
             <DialogDescription>
-              {editingIncome ? 'Update the income details' : 'Add a new income record to your financial dashboard'}
+              {isViewing ? 'Detailed view of the income record' : (editingIncome ? 'Update the income details' : 'Add a new income record to your financial dashboard')}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -981,6 +977,7 @@ const Dolla: React.FC = () => {
               <div className="space-y-2">
                 <Label htmlFor="income-type">Income Type *</Label>
                 <Select
+                  disabled={isViewing}
                   value={incomeForm.type}
                   onValueChange={(value) => setIncomeForm({ ...incomeForm, type: value })}
                 >
@@ -993,6 +990,11 @@ const Dolla: React.FC = () => {
                         {formatType(type)}
                       </SelectItem>
                     ))}
+                    {incomeForm.type && !incomeTypes.includes(incomeForm.type) && (
+                      <SelectItem key={incomeForm.type} value={incomeForm.type}>
+                        {formatType(incomeForm.type)}
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -1002,6 +1004,7 @@ const Dolla: React.FC = () => {
                   id="income-amount"
                   type="number"
                   placeholder="0.00"
+                  disabled={isViewing}
                   value={incomeForm.amount}
                   onChange={(e) => setIncomeForm({ ...incomeForm, amount: e.target.value })}
                 />
@@ -1015,6 +1018,7 @@ const Dolla: React.FC = () => {
                   id="income-category"
                   list="income-categories-list"
                   placeholder="Select or type category"
+                  disabled={isViewing}
                   value={incomeForm.category}
                   onChange={(e) => setIncomeForm({ ...incomeForm, category: e.target.value })}
                   key={editingIncome?.id || 'new'}
@@ -1032,6 +1036,7 @@ const Dolla: React.FC = () => {
                 <Input
                   id="client-name"
                   placeholder="Enter client name"
+                  disabled={isViewing}
                   value={incomeForm.client_name}
                   onChange={(e) => setIncomeForm({ ...incomeForm, client_name: e.target.value })}
                 />
@@ -1042,6 +1047,7 @@ const Dolla: React.FC = () => {
               <div className="space-y-2">
                 <Label htmlFor="payment-method">Payment Method</Label>
                 <Select
+                  disabled={isViewing}
                   value={incomeForm.payment_method}
                   onValueChange={(value) => setIncomeForm({ ...incomeForm, payment_method: value })}
                 >
@@ -1060,6 +1066,7 @@ const Dolla: React.FC = () => {
               <div className="space-y-2">
                 <Label htmlFor="payment-status">Payment Status</Label>
                 <Select
+                  disabled={isViewing}
                   value={incomeForm.payment_status}
                   onValueChange={(value) => setIncomeForm({ ...incomeForm, payment_status: value })}
                 >
@@ -1082,6 +1089,7 @@ const Dolla: React.FC = () => {
               <Textarea
                 id="income-remarks"
                 placeholder="Add any remarks or notes about this income..."
+                disabled={isViewing}
                 value={incomeForm.remarks}
                 onChange={(e) => setIncomeForm({ ...incomeForm, remarks: e.target.value })}
                 rows={3}
@@ -1094,19 +1102,21 @@ const Dolla: React.FC = () => {
               onClick={() => setIncomeDialogOpen(false)}
               disabled={loading}
             >
-              Cancel
+              {isViewing ? 'Close' : 'Cancel'}
             </Button>
-            <Button
-              onClick={editingIncome ? handleUpdateIncome : handleAddIncome}
-              disabled={!incomeForm.type || !incomeForm.amount || !incomeForm.category || loading}
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-              )}
-              {editingIncome ? 'Update Income' : 'Add Income'}
-            </Button>
+            {!isViewing && (
+              <Button
+                onClick={editingIncome ? handleUpdateIncome : handleAddIncome}
+                disabled={!incomeForm.type || !incomeForm.amount || !incomeForm.category || loading}
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                )}
+                {editingIncome ? 'Update Income' : 'Add Income'}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1116,10 +1126,10 @@ const Dolla: React.FC = () => {
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle>
-              {editingExpense ? 'Edit Expense' : 'Add New Expense'}
+              {isViewing ? 'View Expense Details' : (editingExpense ? 'Edit Expense' : 'Add New Expense')}
             </DialogTitle>
             <DialogDescription>
-              {editingExpense ? 'Update the expense details' : 'Add a new expense record to your financial dashboard'}
+              {isViewing ? 'Detailed view of the expense record' : (editingExpense ? 'Update the expense details' : 'Add a new expense record to your financial dashboard')}
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -1127,6 +1137,7 @@ const Dolla: React.FC = () => {
               <div className="space-y-2">
                 <Label htmlFor="expense-type">Expense Type *</Label>
                 <Select
+                  disabled={isViewing}
                   value={expenseForm.type}
                   onValueChange={(value) => setExpenseForm({ ...expenseForm, type: value })}
                 >
@@ -1139,6 +1150,11 @@ const Dolla: React.FC = () => {
                         {formatType(type)}
                       </SelectItem>
                     ))}
+                    {expenseForm.type && !expenseTypes.includes(expenseForm.type) && (
+                      <SelectItem key={expenseForm.type} value={expenseForm.type}>
+                        {formatType(expenseForm.type)}
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -1148,6 +1164,7 @@ const Dolla: React.FC = () => {
                   id="expense-amount"
                   type="number"
                   placeholder="0.00"
+                  disabled={isViewing}
                   value={expenseForm.amount}
                   onChange={(e) => setExpenseForm({ ...expenseForm, amount: e.target.value })}
                 />
@@ -1161,6 +1178,7 @@ const Dolla: React.FC = () => {
                   id="expense-category"
                   list="expense-categories-list"
                   placeholder="Select or type category"
+                  disabled={isViewing}
                   value={expenseForm.category}
                   onChange={(e) => setExpenseForm({ ...expenseForm, category: e.target.value })}
                 />
@@ -1175,6 +1193,7 @@ const Dolla: React.FC = () => {
                 <Input
                   id="vendor"
                   placeholder="Enter vendor name"
+                  disabled={isViewing}
                   value={expenseForm.vendor_name}
                   onChange={(e) => setExpenseForm({ ...expenseForm, vendor_name: e.target.value })}
                 />
@@ -1185,6 +1204,7 @@ const Dolla: React.FC = () => {
               <div className="space-y-2">
                 <Label htmlFor="expense-payment-method">Payment Method</Label>
                 <Select
+                  disabled={isViewing}
                   value={expenseForm.payment_method}
                   onValueChange={(value) => setExpenseForm({ ...expenseForm, payment_method: value })}
                 >
@@ -1203,6 +1223,7 @@ const Dolla: React.FC = () => {
               <div className="space-y-2">
                 <Label htmlFor="expense-payment-status">Payment Status</Label>
                 <Select
+                  disabled={isViewing}
                   value={expenseForm.payment_status}
                   onValueChange={(value) => setExpenseForm({ ...expenseForm, payment_status: value })}
                 >
@@ -1225,6 +1246,7 @@ const Dolla: React.FC = () => {
               <Textarea
                 id="expense-remarks"
                 placeholder="Add any remarks or notes about this expense..."
+                disabled={isViewing}
                 value={expenseForm.remarks}
                 onChange={(e) => setExpenseForm({ ...expenseForm, remarks: e.target.value })}
                 rows={3}
@@ -1237,19 +1259,21 @@ const Dolla: React.FC = () => {
               onClick={() => setExpenseDialogOpen(false)}
               disabled={loading}
             >
-              Cancel
+              {isViewing ? 'Close' : 'Cancel'}
             </Button>
-            <Button
-              onClick={editingExpense ? handleUpdateExpense : handleAddExpense}
-              disabled={!expenseForm.type || !expenseForm.amount || !expenseForm.category || loading}
-            >
-              {loading ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4 mr-2" />
-              )}
-              {editingExpense ? 'Update Expense' : 'Add Expense'}
-            </Button>
+            {!isViewing && (
+              <Button
+                onClick={editingExpense ? handleUpdateExpense : handleAddExpense}
+                disabled={!expenseForm.type || !expenseForm.amount || !expenseForm.category || loading}
+              >
+                {loading ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                )}
+                {editingExpense ? 'Update Expense' : 'Add Expense'}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
