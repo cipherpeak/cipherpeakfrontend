@@ -64,9 +64,13 @@ export const requests = {
 
     // Verification API
     VerificationList: 'api/pending-clients/',
-    VerificationCreate: 'api/verifications/',
-    VerificationDetail: (id: number) => `api/verifications/${id}/`,
-    VerificationByClientMonth: 'api/verifications/by-client-month/',
+    VerificationClientDetails: (id: number) => `api/client-details/${id}/`,
+    MarkVerificationVerified: 'api/mark-verified/',
+    MarkClientVerified: 'api/mark-client-verified/',
+    VerificationCompletedWork: 'api/completed-work/',
+    VerificationDashboard: 'api/verification-dashboard/',
+    UpdatePostedCount: 'api/update-posted-count/',
+    UpdateClientQuota: 'api/update-client-quota/',
 
     // Finance API
     IncomeListCreate: 'api/finance/incomes/',
