@@ -24,7 +24,8 @@ import {
     AlertCircle,
     UserCheck,
     Users,
-    Coffee
+    Coffee,
+    Camera
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { requests } from '@/lib/urls';
@@ -153,13 +154,21 @@ const EmployeeDashboard = () => {
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             {/* Header section matches Admin but tailored to employee */}
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-start mb-6">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
                     <p className="text-muted-foreground mt-1">
                         Welcome back! Here's an overview of your activities and status.
                     </p>
                 </div>
+                {userInfo && (
+                    <NavLink to="/camera-team">
+                        <Button className="bg-primary hover:bg-primary/90 text-white rounded-xl px-6 font-bold flex items-center gap-2 shadow-lg shadow-primary/20">
+                            <Camera className="h-4 w-4" />
+                            Camera Team
+                        </Button>
+                    </NavLink>
+                )}
             </div>
 
             {/* Metric Grid - Matching Admin Style */}

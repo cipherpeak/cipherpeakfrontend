@@ -95,4 +95,8 @@ export const requests = {
     MonthlyEmployeeReport: 'api/reports/monthly/employees/',
     MonthlyIncomeReport: 'api/reports/monthly/income/',
     MonthlyExpenseReport: 'api/reports/monthly/expense/',
+    // Camera Department API
+    CameraDepartmentList: 'auth/camera-department/',
+    CameraDepartmentCreate: 'auth/camera-department/create/',
+    CameraDepartmentDetail: (id: number) => `auth/camera-department/${id}/`,
 };

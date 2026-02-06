@@ -31,6 +31,7 @@ import ClientDetails from "./pages/ClientDetails";
 import Reports from "./pages/Reports";
 import ClientReportDetail from "./pages/ClientReportDetail";
 import EmployeeReportDetail from "./pages/EmployeeReportDetail";
+import CameraTeam from "./pages/CameraTeam";
 
 const queryClient = new QueryClient();
 
@@ -155,6 +156,15 @@ const App = () => (
               element={
                 <PrivateRoute>
                   <Reports />
+                </PrivateRoute>
+              }
+            />
+
+            <Route
+              path="camera-team"
+              element={
+                <PrivateRoute>
+                  <CameraTeam />
                 </PrivateRoute>
               }
             />

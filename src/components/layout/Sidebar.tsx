@@ -21,6 +21,7 @@ import {
   CheckCircle2 as CheckCircleIcon,
   CalendarDays,
   FileSpreadsheet,
+  Camera,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useSelector } from 'react-redux';
@@ -33,6 +34,7 @@ interface SidebarProps {
 
 const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
   const user = useSelector((state: RootState) => state.auth.user);
+  const userInfo = useSelector((state: RootState) => state.auth.userInfo);
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
@@ -45,6 +47,7 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
     { icon: IndianRupee, label: 'Dolla', path: '/dolla' },
     { icon: CheckCircleIcon, label: 'Verification', path: '/verification' },
     { icon: BarChart3, label: 'Reports', path: '/reports' },
+    { icon: Camera, label: 'Shooted Clips', path: '/camera-team' },
   ];
 
   const filteredNavItems = navItems.filter((item) => {
@@ -65,6 +68,10 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
     }
 
     if (item.path === '/leave-management') {
+      return !isAdmin;
+    }
+
+    if (item.path === '/camera-team') {
       return !isAdmin;
     }
 
