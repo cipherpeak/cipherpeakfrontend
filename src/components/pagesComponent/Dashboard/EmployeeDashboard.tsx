@@ -161,14 +161,14 @@ const EmployeeDashboard = () => {
                         Welcome back! Here's an overview of your activities and status.
                     </p>
                 </div>
-                {userInfo && (
+                {/* {userInfo && (
                     <NavLink to="/camera-team">
                         <Button className="bg-primary hover:bg-primary/90 text-white rounded-xl px-6 font-bold flex items-center gap-2 shadow-lg shadow-primary/20">
                             <Camera className="h-4 w-4" />
                             Camera Team
                         </Button>
                     </NavLink>
-                )}
+                )} */}
             </div>
 
             {/* Metric Grid - Matching Admin Style */}

@@ -21,6 +21,14 @@ import {
 
 import { Badge } from '@/components/ui/badge';
 import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
     Camera,
     Video,
     Plus,
@@ -67,6 +75,10 @@ const CameraTeam = () => {
     const [clients, setClients] = useState<Client[]>([]);
     const [isLoadingClients, setIsLoadingClients] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
+    const [selectedProject, setSelectedProject] = useState<CameraProject | null>(null);
+    const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editFormData, setEditFormData] = useState<any>({});
     const [newProject, setNewProject] = useState({
         client_name: '',
         file_path: '',
@@ -151,22 +163,76 @@ const CameraTeam = () => {
                 priority: 'medium',
                 link: ''
             });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error creating project:', error);
-            toast.error('Failed to create project');
+            if (error.response && error.response.data) {
+                console.error('Validation Errors:', error.response.data);
+                toast.error(`Error: ${JSON.stringify(error.response.data)}`);
+            } else {
+                toast.error('Failed to create project');
+            }
         } finally {
             setLoading(false);
         }
     };
 
     const handleDeleteProject = async (id: number) => {
+        if (!confirm('Are you sure you want to delete this project?')) return;
+
         try {
             await axiosInstance.delete(requests.CameraDepartmentDetail(id));
             toast.success('Project deleted successfully');
             fetchProjects();
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error deleting project:', error);
-            toast.error('Failed to delete project');
+            if (error.response) {
+                console.error('Delete Error Response:', error.response.data);
+                console.error('Delete Error Status:', error.response.status);
+                toast.error(`Delete failed: ${error.response.status} - ${JSON.stringify(error.response.data)}`);
+            } else {
+                toast.error('Failed to delete project');
+            }
+        }
+    };
+
+    const handleViewProject = (project: CameraProject) => {
+        setSelectedProject(project);
+        setIsViewModalOpen(true);
+    };
+
+    const handleEditProject = (project: CameraProject) => {
+        setSelectedProject(project);
+        setEditFormData({
+            client: project.client,
+            file_path: project.file_path,
+            uploaded_date: project.uploaded_date,
+            priority: project.priority,
+            link: project.link
+        });
+        setIsEditModalOpen(true);
+    };
+
+    const handleUpdateProject = async () => {
+        if (!selectedProject) return;
+
+        try {
+            setLoading(true);
+            await axiosInstance.put(
+                requests.CameraDepartmentDetail(selectedProject.id),
+                editFormData
+            );
+            toast.success('Project updated successfully');
+            setIsEditModalOpen(false);
+            fetchProjects();
+        } catch (error: any) {
+            console.error('Error updating project:', error);
+            if (error.response && error.response.data) {
+                toast.error(`Error: ${JSON.stringify(error.response.data)}`);
+            } else {
+                toast.error('Failed to update project');
+            }
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -288,7 +354,7 @@ const CameraTeam = () => {
                 </CardContent>
             </Card>
 
-            {/* Content Section */}
+            {/* Projects List */}
             <Card className="border-none shadow-xl shadow-slate-200/50 rounded-3xl overflow-hidden">
                 <CardHeader className="border-b border-slate-50 bg-slate-50/30">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -366,10 +432,22 @@ const CameraTeam = () => {
                                         </TableCell>
                                         <TableCell className="text-right py-4 pr-6">
                                             <div className="flex items-center justify-end gap-1">
-                                                <Button variant="ghost" size="icon" className="rounded-lg h-8 w-8 hover:bg-blue-50 text-blue-500 hover:text-blue-600 transition-colors" title="View Details">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="rounded-lg h-8 w-8 hover:bg-blue-50 text-blue-500 hover:text-blue-600 transition-colors"
+                                                    title="View Details"
+                                                    onClick={() => handleViewProject(project)}
+                                                >
                                                     <Eye className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="icon" className="rounded-lg h-8 w-8 hover:bg-amber-50 text-amber-500 hover:text-amber-600 transition-colors" title="Edit Project">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="rounded-lg h-8 w-8 hover:bg-amber-50 text-amber-500 hover:text-amber-600 transition-colors"
+                                                    title="Edit Project"
+                                                    onClick={() => handleEditProject(project)}
+                                                >
                                                     <Edit className="h-4 w-4" />
                                                 </Button>
                                                 <Button
@@ -390,6 +468,120 @@ const CameraTeam = () => {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* View Project Modal */}
+            <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                            <Eye className="h-5 w-5 text-blue-500" />
+                            Project Details
+                        </DialogTitle>
+                        <DialogDescription>
+                            View complete information about this project
+                        </DialogDescription>
+                    </DialogHeader>
+                    {selectedProject && (
+                        <div className="space-y-4 py-4">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <Label className="text-xs text-slate-500 uppercase font-bold">Client Name</Label>
+                                    <p className="text-sm font-semibold text-slate-800 mt-1">{selectedProject.client_name}</p>
+                                </div>
+                                <div>
+                                    <Label className="text-xs text-slate-500 uppercase font-bold">Priority</Label>
+                                    <div className="mt-1">{getPriorityBadge(selectedProject.priority)}</div>
+                                </div>
+                            </div>
+                            <div>
+                                <Label className="text-xs text-slate-500 uppercase font-bold">File Path</Label>
+                                <p className="text-sm text-slate-700 mt-1 font-mono bg-slate-50 p-2 rounded">{selectedProject.file_path}</p>
+                            </div>
+                            <div>
+                                <Label className="text-xs text-slate-500 uppercase font-bold">Uploaded Date</Label>
+                                <p className="text-sm text-slate-700 mt-1">{format(new Date(selectedProject.uploaded_date), 'MMMM dd, yyyy')}</p>
+                            </div>
+                            <div>
+                                <Label className="text-xs text-slate-500 uppercase font-bold">Drive Link</Label>
+                                {selectedProject.link ? (
+                                    <a href={selectedProject.link} target="_blank" rel="noreferrer" className="text-sm text-blue-600 hover:underline mt-1 block">
+                                        {selectedProject.link}
+                                    </a>
+                                ) : (
+                                    <p className="text-sm text-slate-400 italic mt-1">No link provided</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>Close</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Edit Project Modal */}
+            <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+                <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-bold flex items-center gap-2">
+                            <Edit className="h-5 w-5 text-amber-500" />
+                            Edit Project
+                        </DialogTitle>
+                        <DialogDescription>
+                            Update project information
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div>
+                            <Label>File Path</Label>
+                            <Input
+                                value={editFormData.file_path || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, file_path: e.target.value })}
+                                placeholder="C:\Users\Username\Desktop\your_projects\project"
+                            />
+                        </div>
+                        <div>
+                            <Label>Uploaded Date</Label>
+                            <Input
+                                type="date"
+                                value={editFormData.uploaded_date || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, uploaded_date: e.target.value })}
+                            />
+                        </div>
+                        <div>
+                            <Label>Priority</Label>
+                            <Select
+                                value={editFormData.priority || 'medium'}
+                                onValueChange={(value) => setEditFormData({ ...editFormData, priority: value })}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="urgent">Urgent</SelectItem>
+                                    <SelectItem value="high">High</SelectItem>
+                                    <SelectItem value="medium">Medium</SelectItem>
+                                    <SelectItem value="low">Low</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div>
+                            <Label>Drive Link</Label>
+                            <Input
+                                value={editFormData.link || ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, link: e.target.value })}
+                                placeholder="https://drive.google.com/..."
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+                        <Button onClick={handleUpdateProject} disabled={loading}>
+                            {loading ? 'Updating...' : 'Update Project'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 };

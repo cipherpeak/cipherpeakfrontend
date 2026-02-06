@@ -72,7 +72,7 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
     }
 
     if (item.path === '/camera-team') {
-      return !isAdmin;
+      return true; // Show for all users including admins
     }
 
     return true;
