@@ -1,5 +1,10 @@
-import { NavLink } from 'react-router-dom';
-import { cn } from '@/lib/utils';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation, NavLink } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
+import { RootState } from '@/Redux/Store';
+import { updateUserInfo } from '@/Redux/slices/authSlice';
+import axiosInstance from '@/axios/axios';
+import { requests } from '@/lib/urls';
 import {
   CalendarIcon,
   Loader2,
@@ -24,8 +29,7 @@ import {
   Camera,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useSelector } from 'react-redux';
-import { RootState } from '@/Redux/Store';
+import { cn } from '@/lib/utils';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -35,6 +39,31 @@ interface SidebarProps {
 const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
   const user = useSelector((state: RootState) => state.auth.user);
   const userInfo = useSelector((state: RootState) => state.auth.userInfo);
+  const dispatch = useDispatch();
+  console.log(userInfo, "this is iyserewrwrwrwerwe")
+  useEffect(() => {
+    const fetchFullProfile = async () => {
+      // If we have userInfo but it's missing critical fields, fetch full list and find self
+      if (userInfo?.id && (!userInfo?.department || !userInfo?.designation)) {
+        try {
+          const response = await axiosInstance.get(requests.EmployeeList);
+          const employees = Array.isArray(response.data) ? response.data : (response.data.employees || []);
+          const me = employees.find((emp: any) => emp.id === userInfo.id);
+          if (me) {
+            console.log('Sidebar: Successfully fetched full profile for', me.username);
+            dispatch(updateUserInfo(me));
+          }
+        } catch (error) {
+          console.error('Sidebar: Failed to fetch profile fallback:', error);
+        }
+      }
+    };
+
+    fetchFullProfile();
+  }, [userInfo?.id, dispatch]);
+
+  console.log('Sidebar Debug - user Role:', user);
+  console.log('Sidebar Debug - userInfo:', userInfo);
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
@@ -51,31 +80,40 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
   ];
 
   const filteredNavItems = navItems.filter((item) => {
-    const isAdmin = user === 'admin' || user === 'superuser';
+    const isAdmin = user === 'admin' || user === 'superuser' || (typeof user === 'object' && (user.is_superuser || ['admin', 'superuser'].includes(user.role)));
+    const role = typeof user === 'string' ? user : user?.role;
+    const userType = userInfo?.user_type;
 
-    // Admin-only paths
-    const adminOnlyPaths = [
-      '/employees',
-      '/clients',
-      '/dolla',
-      '/verification',
-      '/reports',
-      '/leave-applications'
-    ];
+    // Mapping of paths to allowed roles/userTypes
+    switch (item.path) {
+      case '/employees':
+      case '/clients':
+      case '/dolla':
+      case '/verification':
+      case '/reports':
+        return isAdmin;
 
-    if (adminOnlyPaths.includes(item.path)) {
-      return isAdmin;
+      case '/leave-applications':
+        return isAdmin || ['hr', 'manager'].includes(userType);
+
+      case '/leave-management':
+        return !isAdmin;
+
+      case '/camera-team':
+        return (
+          isAdmin ||
+          ['camera_department', 'content_creator', 'editor', 'manager', 'hr'].includes(userType)
+        );
+
+      case '/': // Dashboard
+      case '/tasks':
+      case '/calendar':
+      case '/profile':
+        return true;
+
+      default:
+        return true;
     }
-
-    if (item.path === '/leave-management') {
-      return !isAdmin;
-    }
-
-    if (item.path === '/camera-team') {
-      return true; // Show for all users including admins
-    }
-
-    return true;
   });
 
   return (
@@ -106,6 +144,7 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
             <li key={item.path}>
               <NavLink
                 to={item.path}
+                title={`${item.label} (Role: ${user}, Dept: ${userInfo?.department}, Desig: ${userInfo?.designation})`}
                 className={({ isActive }) =>
                   cn(
                     'flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors',

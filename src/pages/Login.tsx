@@ -53,11 +53,27 @@ const Login = () => {
         console.log("Patched UserInfo ID:", userInfo.id);
       }
 
+      // Fetch full profile immediately
+      let finalUserInfo = userInfo;
+      try {
+        const profileRes = await axios.get(`${backendUrl}auth/employees/`, {
+          headers: { Authorization: `Bearer ${response.data.access}` }
+        });
+        const employees = Array.isArray(profileRes.data) ? profileRes.data : (profileRes.data.employees || []);
+        const me = employees.find((emp: any) => emp.id === userInfo.id || emp.email === userInfo.email);
+        if (me) {
+          console.log("LOGIN: Found full profile:", me);
+          finalUserInfo = { ...userInfo, ...me };
+        }
+      } catch (err) {
+        console.error("LOGIN: Failed to fetch full profile:", err);
+      }
+
       // Dispatch login success
       dispatch(
         loginSuccess({
           user: response.data.user,
-          userInfo: userInfo,
+          userInfo: finalUserInfo,
           access_token: response.data.access,
           refresh_token: response.data.refresh,
         })

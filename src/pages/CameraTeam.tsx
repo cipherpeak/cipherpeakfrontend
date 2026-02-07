@@ -72,6 +72,7 @@ const CameraTeam = () => {
     console.log('Current User Info:', userInfo); // DEBUG: Check user role/type
     const [projects, setProjects] = useState<CameraProject[]>([]);
     const [loading, setLoading] = useState(false);
+    const [canCreate, setCanCreate] = useState(false);
     const [clients, setClients] = useState<Client[]>([]);
     const [isLoadingClients, setIsLoadingClients] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -113,7 +114,18 @@ const CameraTeam = () => {
         try {
             setLoading(true);
             const response = await axiosInstance.get(requests.CameraDepartmentList);
-            setProjects(response.data);
+            // Handle both array response and object response with projects key
+            if (Array.isArray(response.data)) {
+                setProjects(response.data);
+                setCanCreate(false); // Default to false if not provided in array response (legacy/fallback)
+            } else if (response.data && Array.isArray(response.data.projects)) {
+                setProjects(response.data.projects);
+                setCanCreate(!!response.data.can_create);
+            } else {
+                console.error('Unexpected API response structure for projects:', response.data);
+                setProjects([]);
+                setCanCreate(false);
+            }
         } catch (error) {
             console.error('Error fetching projects:', error);
             toast.error('Failed to fetch projects');
@@ -262,97 +274,99 @@ const CameraTeam = () => {
             </div>
 
             {/* Inline Add Project Form */}
-            <Card className="border-none shadow-xl shadow-slate-200/50 rounded-3xl overflow-hidden animate-in zoom-in-95 duration-300">
-                <div className="bg-primary/5 p-6 border-b border-primary/10">
-                    <h2 className="text-lg font-bold flex items-center gap-2 text-slate-800">
-                        <Plus className="h-5 w-5 text-primary" />
-                        Create New Project Link
-                    </h2>
-                </div>
-                <CardContent className="p-8">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">File Path *</Label>
-                            <Input
-                                placeholder="C:\Users\Username\Desktop\your_projects\project"
-                                className="rounded-xl border-slate-200 h-11 focus:ring-primary/20"
-                                value={newProject.file_path}
-                                onChange={(e) => setNewProject({ ...newProject, file_path: e.target.value })}
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Client Name *</Label>
-                            <Select
-                                value={newProject.client_name}
-                                onValueChange={(value) => setNewProject({ ...newProject, client_name: value })}
-                            >
-                                <SelectTrigger className="rounded-xl border-slate-200 h-11 focus:ring-primary/20">
-                                    <SelectValue placeholder={isLoadingClients ? "Loading clients..." : "Select client"} />
-                                </SelectTrigger>
-                                <SelectContent className="rounded-xl border-slate-100 shadow-xl overflow-y-auto max-h-[300px]">
-                                    {clients.length > 0 ? (
-                                        clients.map((client) => (
-                                            <SelectItem key={client.id} value={client.client_name}>
-                                                {client.client_name}
-                                            </SelectItem>
-                                        ))
-                                    ) : (
-                                        <SelectItem value="none" disabled>No active clients</SelectItem>
-                                    )}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Priority *</Label>
-                            <Select
-                                value={newProject.priority}
-                                onValueChange={(value) => setNewProject({ ...newProject, priority: value })}
-                            >
-                                <SelectTrigger className="rounded-xl border-slate-200 h-11 focus:ring-primary/20">
-                                    <SelectValue placeholder="Select priority" />
-                                </SelectTrigger>
-                                <SelectContent className="rounded-xl border-slate-100 shadow-xl">
-                                    <SelectItem value="low">Low Priority</SelectItem>
-                                    <SelectItem value="medium">Medium Priority</SelectItem>
-                                    <SelectItem value="high">High Priority</SelectItem>
-                                    <SelectItem value="urgent">Urgent Priority</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Uploaded Date *</Label>
-                            <Input
-                                type="date"
-                                className="rounded-xl border-slate-200 h-11 focus:ring-primary/20"
-                                value={newProject.uploaded_date}
-                                onChange={(e) => setNewProject({ ...newProject, uploaded_date: e.target.value })}
-                            />
-                        </div>
-                        <div className="md:col-span-2 space-y-2">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Drive Link</Label>
-                            <div className="relative">
-                                <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            {canCreate && (
+                <Card className="border-none shadow-xl shadow-slate-200/50 rounded-3xl overflow-hidden animate-in zoom-in-95 duration-300">
+                    <div className="bg-primary/5 p-6 border-b border-primary/10">
+                        <h2 className="text-lg font-bold flex items-center gap-2 text-slate-800">
+                            <Plus className="h-5 w-5 text-primary" />
+                            Create New Project Link
+                        </h2>
+                    </div>
+                    <CardContent className="p-8">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">File Path *</Label>
                                 <Input
-                                    placeholder="https://drive.google.com/..."
-                                    className="pl-10 rounded-xl border-slate-200 h-11 focus:ring-primary/20"
-                                    value={newProject.link}
-                                    onChange={(e) => setNewProject({ ...newProject, link: e.target.value })}
+                                    placeholder="C:\Users\Username\Desktop\your_projects\project"
+                                    className="rounded-xl border-slate-200 h-11 focus:ring-primary/20"
+                                    value={newProject.file_path}
+                                    onChange={(e) => setNewProject({ ...newProject, file_path: e.target.value })}
                                 />
                             </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Client Name *</Label>
+                                <Select
+                                    value={newProject.client_name}
+                                    onValueChange={(value) => setNewProject({ ...newProject, client_name: value })}
+                                >
+                                    <SelectTrigger className="rounded-xl border-slate-200 h-11 focus:ring-primary/20">
+                                        <SelectValue placeholder={isLoadingClients ? "Loading clients..." : "Select client"} />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl border-slate-100 shadow-xl overflow-y-auto max-h-[300px]">
+                                        {clients.length > 0 ? (
+                                            clients.map((client) => (
+                                                <SelectItem key={client.id} value={client.client_name}>
+                                                    {client.client_name}
+                                                </SelectItem>
+                                            ))
+                                        ) : (
+                                            <SelectItem value="none" disabled>No active clients</SelectItem>
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Priority *</Label>
+                                <Select
+                                    value={newProject.priority}
+                                    onValueChange={(value) => setNewProject({ ...newProject, priority: value })}
+                                >
+                                    <SelectTrigger className="rounded-xl border-slate-200 h-11 focus:ring-primary/20">
+                                        <SelectValue placeholder="Select priority" />
+                                    </SelectTrigger>
+                                    <SelectContent className="rounded-xl border-slate-100 shadow-xl">
+                                        <SelectItem value="low">Low Priority</SelectItem>
+                                        <SelectItem value="medium">Medium Priority</SelectItem>
+                                        <SelectItem value="high">High Priority</SelectItem>
+                                        <SelectItem value="urgent">Urgent Priority</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Uploaded Date *</Label>
+                                <Input
+                                    type="date"
+                                    className="rounded-xl border-slate-200 h-11 focus:ring-primary/20"
+                                    value={newProject.uploaded_date}
+                                    onChange={(e) => setNewProject({ ...newProject, uploaded_date: e.target.value })}
+                                />
+                            </div>
+                            <div className="md:col-span-2 space-y-2">
+                                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Drive Link</Label>
+                                <div className="relative">
+                                    <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                    <Input
+                                        placeholder="https://drive.google.com/..."
+                                        className="pl-10 rounded-xl border-slate-200 h-11 focus:ring-primary/20"
+                                        value={newProject.link}
+                                        onChange={(e) => setNewProject({ ...newProject, link: e.target.value })}
+                                    />
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                    <div className="mt-8 flex justify-end">
-                        <Button
-                            onClick={handleAddProject}
-                            className="bg-primary hover:bg-primary/90 text-white rounded-xl px-12 font-black shadow-lg shadow-primary/20 h-11"
-                            disabled={!newProject.client_name || !newProject.file_path}
-                        >
-                            <Plus className="h-4 w-4 mr-2" />
-                            Create Project
-                        </Button>
-                    </div>
-                </CardContent>
-            </Card>
+                        <div className="mt-8 flex justify-end">
+                            <Button
+                                onClick={handleAddProject}
+                                className="bg-primary hover:bg-primary/90 text-white rounded-xl px-12 font-black shadow-lg shadow-primary/20 h-11"
+                                disabled={!newProject.client_name || !newProject.file_path}
+                            >
+                                <Plus className="h-4 w-4 mr-2" />
+                                Create Project
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Projects List */}
             <Card className="border-none shadow-xl shadow-slate-200/50 rounded-3xl overflow-hidden">
@@ -392,7 +406,15 @@ const CameraTeam = () => {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {projects.map((project) => (
+                                {Array.isArray(projects) && projects.filter(project => {
+                                    if (!searchTerm) return true;
+                                    const lowerSearch = searchTerm.toLowerCase();
+                                    return (
+                                        project.client_name?.toLowerCase().includes(lowerSearch) ||
+                                        project.file_path?.toLowerCase().includes(lowerSearch) ||
+                                        project.priority?.toLowerCase().includes(lowerSearch)
+                                    );
+                                }).map((project) => (
                                     <TableRow key={project.id} className="hover:bg-slate-50/50 transition-colors border-slate-50 group">
                                         <TableCell className="font-bold text-slate-800 py-4 pl-6">{project.client_name}</TableCell>
                                         <TableCell className="text-slate-600 py-4">
@@ -441,24 +463,28 @@ const CameraTeam = () => {
                                                 >
                                                     <Eye className="h-4 w-4" />
                                                 </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="rounded-lg h-8 w-8 hover:bg-amber-50 text-amber-500 hover:text-amber-600 transition-colors"
-                                                    title="Edit Project"
-                                                    onClick={() => handleEditProject(project)}
-                                                >
-                                                    <Edit className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="rounded-lg h-8 w-8 hover:bg-red-50 text-red-500 hover:text-red-600 transition-colors"
-                                                    title="Delete Project"
-                                                    onClick={() => handleDeleteProject(project.id)}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
+                                                {canCreate && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="rounded-lg h-8 w-8 hover:bg-amber-50 text-amber-500 hover:text-amber-600 transition-colors"
+                                                        title="Edit Project"
+                                                        onClick={() => handleEditProject(project)}
+                                                    >
+                                                        <Edit className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                                {canCreate && (
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="rounded-lg h-8 w-8 hover:bg-red-50 text-red-500 hover:text-red-600 transition-colors"
+                                                        title="Delete Project"
+                                                        onClick={() => handleDeleteProject(project.id)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                )}
                                             </div>
                                         </TableCell>
                                     </TableRow>

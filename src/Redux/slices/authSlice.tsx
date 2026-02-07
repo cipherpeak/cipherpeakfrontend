@@ -45,6 +45,17 @@ const authSlice = createSlice({
     },
 
 
+    updateUserInfo: (state, action) => {
+      state.userInfo = { ...state.userInfo, ...action.payload };
+      // Also update localStorage
+      const serializedState = localStorage.getItem('cipherauthTokens');
+      if (serializedState) {
+        const currentData = JSON.parse(serializedState);
+        currentData.userInfo = { ...currentData.userInfo, ...action.payload };
+        localStorage.setItem('cipherauthTokens', JSON.stringify(currentData));
+      }
+    },
+
     logout: (state) => {
       state.user = null;
       state.userInfo = null;
@@ -57,6 +68,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { startLoading, loginSuccess, loginFailure, logout } =
+export const { startLoading, loginSuccess, loginFailure, logout, updateUserInfo } =
   authSlice.actions;
 export default authSlice.reducer;
