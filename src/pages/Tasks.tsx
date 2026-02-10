@@ -557,7 +557,7 @@ const Tasks = () => {
               </Card>
 
               {/* Task Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredTasks.filter(t => t.status !== 'completed').length > 0 ? (
                   filteredTasks.filter(t => t.status !== 'completed').map((task) => (
                     <Card key={task.id} className="group hover:shadow-lg transition-all duration-300 border-l-4 border-l-primary/50">
@@ -568,7 +568,10 @@ const Tasks = () => {
                               {getStatusIcon(task.status)}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <CardTitle className="text-lg group-hover:text-primary transition-colors truncate">
+                              <CardTitle
+                                className="text-lg group-hover:text-primary transition-colors line-clamp-2 leading-tight"
+                                title={task.title}
+                              >
                                 {task.title}
                               </CardTitle>
                               <CardDescription className="flex items-center gap-1 mt-1">
@@ -692,7 +695,7 @@ const Tasks = () => {
 
 
             <TabsContent value="archive" className="mt-0">
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredTasks.filter(t => t.status === 'completed').length > 0 ? (
                   filteredTasks.filter(t => t.status === 'completed').map((task) => (
                     <Card key={task.id} className="group hover:shadow-lg transition-all duration-300 border-l-4 border-l-green-500/50">
@@ -703,7 +706,10 @@ const Tasks = () => {
                               {getStatusIcon(task.status)}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <CardTitle className="text-lg group-hover:text-primary transition-colors truncate">
+                              <CardTitle
+                                className="text-lg group-hover:text-primary transition-colors line-clamp-2 leading-tight"
+                                title={task.title}
+                              >
                                 {task.title}
                               </CardTitle>
                               <CardDescription className="flex items-center gap-1 mt-1">

@@ -32,6 +32,7 @@ export const requests = {
     EmployeeMediaUpload: (id: number) => `auth/employees/upload_media/${id}/`,
     EmployeeDocumentDelete: (id: number) => `auth/employees/document/${id}/delete/`,
     EmployeeMediaDelete: (id: number) => `auth/employees/media/${id}/delete/`,
+    EmployeePasswordReset: (id: number) => `auth/employees/${id}/reset-password/`,
 
 
     // Calendar/Events API
@@ -64,16 +65,13 @@ export const requests = {
     ProcessSalaryPayment: (id: number) => `auth/process-salary-payment/${id}/`,
     PaymentDetail: (id: number) => `auth/payments/${id}/`,
 
-    // Verification API
-    VerificationList: 'api/pending-clients/',
-    VerificationClientDetails: (id: number) => `api/client-details/${id}/`,
-    MarkVerificationVerified: 'api/mark-verified/',
-    MarkClientVerified: 'api/mark-client-verified/',
-    VerificationCompletedWork: 'api/completed-work/',
-    VerificationDashboard: 'api/verification-dashboard/',
-    UpdatePostedCount: 'api/update-posted-count/',
-    UpdateClientQuota: 'api/update-client-quota/',
-
+    verificationDashboard: '/api/dashboard/',
+    addPostedContent: '/api/add-posted-content/',
+    removePostedContent: '/api/remove-posted-content/',
+    deletePostedContent: '/api/delete-posted-content',
+    verifyClient: '/api/verify-client/',
+    updateQuota: '/api/update-quota/',
+    clientContent: '/api/client-content',
     // Finance API
     IncomeListCreate: 'api/finance/incomes/',
     IncomeDetail: (id: number) => `api/finance/incomes/${id}/`,

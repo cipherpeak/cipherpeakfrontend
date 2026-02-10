@@ -40,6 +40,8 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import axiosInstance from '@/axios/axios';
+import { requests } from '@/lib/urls';
+import ResetPasswordModal from './ResetPasswordModal';
 
 interface Employee {
   id: number;
@@ -126,7 +128,28 @@ const AddEmployeeModal = ({
   const [profileImagePreview, setProfileImagePreview] = useState<string>('');
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePasswordReset = async (newPassword: string) => {
+    if (!employeeToEdit) return;
+
+    setResetPasswordLoading(true);
+    try {
+      await axiosInstance.post(requests.EmployeePasswordReset(employeeToEdit.id), {
+        password: newPassword
+      });
+      toast.success("Password updated successfully");
+      setIsResetPasswordModalOpen(false);
+    } catch (err: any) {
+      console.error("Error resetting password:", err);
+      const errorMessage = err.response?.data?.error || "Failed to reset password";
+      toast.error(errorMessage);
+    } finally {
+      setResetPasswordLoading(false);
+    }
+  };
 
   // Role options based on your Django model
   const roleOptions = [
@@ -167,8 +190,8 @@ const AddEmployeeModal = ({
     { value: 'other', label: 'Other' },
     { value: 'prefer_not_to_say', label: 'Prefer not to say' },
   ];
-   console.log(employeeToEdit,"employeeToEdit");
-   
+  console.log(employeeToEdit, "employeeToEdit");
+
   // Reset form when modal opens/closes or employeeToEdit changes
   useEffect(() => {
     if (open) {
@@ -648,9 +671,9 @@ const AddEmployeeModal = ({
                   type="button"
                   variant="outline"
                   className="w-full h-11 justify-start text-black border-dashed"
-                  onClick={() => toast.info("Password reset functionality coming soon")}
+                  onClick={() => setIsResetPasswordModalOpen(true)}
                 >
-                  Forgot Password?
+                  Reset Password
                 </Button>
               </div>
             )}
@@ -743,6 +766,9 @@ const AddEmployeeModal = ({
                       selected={dobDate}
                       onSelect={setDobDate}
                       initialFocus
+                      captionLayout="dropdown-buttons"
+                      fromYear={1960}
+                      toYear={new Date().getFullYear()}
                       className="pointer-events-auto"
                     />
                   </PopoverContent>
@@ -1015,6 +1041,9 @@ const AddEmployeeModal = ({
                     selected={joinDate}
                     onSelect={setJoinDate}
                     initialFocus
+                    captionLayout="dropdown-buttons"
+                    fromYear={2000}
+                    toYear={new Date().getFullYear() + 1}
                     className="pointer-events-auto"
                   />
                 </PopoverContent>
@@ -1049,6 +1078,13 @@ const AddEmployeeModal = ({
           </DialogFooter>
         </form>
       </DialogContent>
+
+      <ResetPasswordModal
+        open={isResetPasswordModalOpen}
+        onOpenChange={setIsResetPasswordModalOpen}
+        onSubmit={handlePasswordReset}
+        loading={resetPasswordLoading}
+      />
     </Dialog>
   );
 };
