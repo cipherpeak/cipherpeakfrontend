@@ -97,35 +97,52 @@ const Reports = () => {
       const fetchExpense = activeTab === 'expense';
 
       if (fetchClients) {
-        const response = await axiosInstance.get(requests.MonthlyClientReport, { params });
-        const data = response.data.details || response.data || [];
-        console.log('Client data fetched:', data.length);
-        setClientData(data);
+        try {
+          const response = await axiosInstance.get(requests.MonthlyClientReport, { params });
+          const data = response.data.details || response.data || [];
+          console.log('Client data fetched:', data.length);
+          setClientData(data);
+        } catch (err) {
+          console.error('Failed to fetch client report:', err);
+          toast.error('Failed to load client report');
+        }
       }
 
       if (fetchEmployees) {
-        const response = await axiosInstance.get(requests.MonthlyEmployeeReport, { params });
-        const data = response.data.details || [];
-        const leaves = response.data.leaves?.details || [];
-        console.log('Employee data fetched:', data.length);
-        setEmployeeData(data);
-        setLeavesData(leaves);
+        try {
+          const response = await axiosInstance.get(requests.MonthlyEmployeeReport, { params });
+          const data = response.data.details || [];
+          const leaves = response.data.leaves?.details || [];
+          console.log('Employee data fetched:', data.length);
+          setEmployeeData(data);
+          setLeavesData(leaves);
+        } catch (err) {
+          console.error('Failed to fetch employee report:', err);
+          toast.error('Failed to load employee report');
+        }
       }
 
       if (fetchIncome) {
-        const response = await axiosInstance.get(requests.MonthlyIncomeReport, { params });
-        setIncomeData(response.data.income?.details || []);
-        setIncomeTotal(response.data.income?.total || 0);
+        try {
+          const response = await axiosInstance.get(requests.MonthlyIncomeReport, { params });
+          setIncomeData(response.data.income?.details || []);
+          setIncomeTotal(response.data.income?.total || 0);
+        } catch (err) {
+          console.error('Failed to fetch income report:', err);
+        }
       }
 
       if (fetchExpense) {
-        const response = await axiosInstance.get(requests.MonthlyExpenseReport, { params });
-        setExpenseData(response.data.expense?.details || []);
-        setExpenseTotal(response.data.expense?.total || 0);
+        try {
+          const response = await axiosInstance.get(requests.MonthlyExpenseReport, { params });
+          setExpenseData(response.data.expense?.details || []);
+          setExpenseTotal(response.data.expense?.total || 0);
+        } catch (err) {
+          console.error('Failed to fetch expense report:', err);
+        }
       }
     } catch (error) {
-      console.error('Error fetching report data:', error);
-      toast.error('Failed to fetch report data');
+      console.error('Unexpected error in report fetching:', error);
     } finally {
       setIsLoading(false);
     }

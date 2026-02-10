@@ -59,7 +59,16 @@ const Login = () => {
         const profileRes = await axios.get(`${backendUrl}auth/employees/`, {
           headers: { Authorization: `Bearer ${response.data.access}` }
         });
-        const employees = Array.isArray(profileRes.data) ? profileRes.data : (profileRes.data.employees || []);
+
+        let employees = [];
+        if (Array.isArray(profileRes.data)) {
+          employees = profileRes.data;
+        } else if (profileRes.data.results && Array.isArray(profileRes.data.results)) {
+          employees = profileRes.data.results;
+        } else if (profileRes.data.employees && Array.isArray(profileRes.data.employees)) {
+          employees = profileRes.data.employees;
+        }
+
         const me = employees.find((emp: any) => emp.id === userInfo.id || emp.email === userInfo.email);
         if (me) {
           console.log("LOGIN: Found full profile:", me);

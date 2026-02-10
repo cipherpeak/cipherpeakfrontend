@@ -37,27 +37,34 @@ import { useToast } from '@/components/ui/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface EmployeeStats {
-    totalTasks: number;
+    activeTasks: number;
     pendingTasks: number;
-    completedTasks: number;
-    upcomingLeaves: number;
-    attendanceRate: number;
-    salaryStatus: string;
+    totalLeavesTaken: number;
+    leaveBalance: number;
+}
+
+interface CalendarEvent {
+    id: number;
+    title: string;
+    description: string;
+    date: string;
+    time: string;
+    duration: string;
+    type: string;
+    status: string;
 }
 
 const EmployeeDashboard = () => {
     const userInfo = useSelector((state: RootState) => state.auth.userInfo);
     const [loading, setLoading] = useState(true);
     const [stats, setStats] = useState<EmployeeStats>({
-        totalTasks: 0,
+        activeTasks: 0,
         pendingTasks: 0,
-        completedTasks: 0,
-        upcomingLeaves: 0,
-        attendanceRate: 0,
-        salaryStatus: 'N/A'
+        totalLeavesTaken: 0,
+        leaveBalance: 0
     });
     const [recentTasks, setRecentTasks] = useState<any[]>([]);
-    const [upcomingLeaves, setUpcomingLeaves] = useState<any[]>([]);
+    const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [salaryDetails, setSalaryDetails] = useState<any>(null);
     const [currentTime, setCurrentTime] = useState(new Date());
     const { toast } = useToast();
@@ -68,29 +75,87 @@ const EmployeeDashboard = () => {
     }, []);
 
     const fetchData = async () => {
+        if (!userInfo?.id) return;
         setLoading(true);
         try {
-            const [tasksRes, leavesRes, salaryRes] = await Promise.all([
+            const [tasksRes, leavesRes, eventsRes] = await Promise.all([
                 axiosInstance.get(requests.TaskList),
                 axiosInstance.get(requests.LeaveList, { params: { employee: userInfo?.id } }),
-                axiosInstance.get(requests.SalaryPaymentList, { params: { employee: userInfo?.id } })
+                axiosInstance.get(requests.EventList)
             ]);
 
             const tasks = Array.isArray(tasksRes.data) ? tasksRes.data : (tasksRes.data.results || []);
             const leaves = Array.isArray(leavesRes.data) ? leavesRes.data : (leavesRes.data.results || []);
-            const salaries = Array.isArray(salaryRes.data) ? salaryRes.data : (salaryRes.data.results || []);
+            const fetchedEvents = Array.isArray(eventsRes.data) ? eventsRes.data : (eventsRes.data.results || []);
 
-            setRecentTasks(tasks.slice(0, 5));
-            setUpcomingLeaves(leaves.filter((l: any) => l.status?.toLowerCase() === 'approved').slice(0, 3));
-            setSalaryDetails(salaries[0] || null);
+            setRecentTasks(tasks.slice(0, 3));
+
+            // Process events
+            const formattedEvents = fetchedEvents.map((evt: any) => {
+                const eventDate = evt.event_date || evt.date;
+                let timeStr = evt.start_time || evt.time;
+
+                // If time is missing, derive it from event_date
+                if (!timeStr && eventDate) {
+                    try {
+                        timeStr = format(new Date(eventDate), 'hh:mm a');
+                    } catch {
+                        timeStr = '12:00 AM';
+                    }
+                }
+
+                // Ensure time has a space for splitting in the UI (e.g., "10:00 AM")
+                if (timeStr && !timeStr.includes(' ')) {
+                    try {
+                        // Assuming format like "10:00:00" or "10:00"
+                        const [h, m] = timeStr.split(':');
+                        const date = new Date();
+                        date.setHours(parseInt(h), parseInt(m));
+                        timeStr = format(date, 'hh:mm a');
+                    } catch {
+                        // Keep as is or fallback
+                    }
+                }
+
+                return {
+                    id: evt.id,
+                    title: evt.name || evt.title || 'Untitled Event',
+                    description: evt.description || '',
+                    date: eventDate,
+                    time: timeStr || '12:00 AM',
+                    duration: evt.duration || '1h',
+                    type: evt.event_type_display || evt.event_type || evt.type || 'Event',
+                    status: evt.status
+                };
+            });
+            setEvents(formattedEvents);
+
+            // Calculate leave stats
+            // Filter leaves for the current employee if the API returns all leaves (depends on backend)
+            // Assuming LeaveList returns current user's leaves due to previous context or filter
+            const myLeaves = leaves;
+
+            const leaveBalances = [
+                { category: 'Annual Leave', total: 18 },
+                { category: 'Casual Leave', total: 12 },
+                { category: 'Sick Leave', total: 6 },
+                { category: 'LOP', total: 5 },
+                { category: 'Bereavement Leave', total: 3 },
+            ].map(b => {
+                const used = myLeaves
+                    .filter((l: any) => l.category === b.category && l.status === 'approved')
+                    .reduce((sum: number, l: any) => sum + (Number(l.total_days || l.totalDays) || 0), 0);
+                return { ...b, used, remaining: Math.max(0, b.total - used) };
+            });
+
+            const totalUsed = leaveBalances.reduce((acc, curr) => acc + curr.used, 0);
+            const totalRemaining = leaveBalances.reduce((acc, curr) => acc + curr.remaining, 0);
 
             setStats({
-                totalTasks: tasks.length,
-                pendingTasks: tasks.filter((t: any) => t.status !== 'completed').length,
-                completedTasks: tasks.filter((t: any) => t.status === 'completed').length,
-                upcomingLeaves: leaves.filter((l: any) => l.status === 'approved').length,
-                attendanceRate: 98,
-                salaryStatus: salaries[0]?.payment_status || 'Pending'
+                activeTasks: tasks.filter((t: any) => t.status === 'in_progress').length,
+                pendingTasks: tasks.filter((t: any) => t.status === 'pending').length,
+                totalLeavesTaken: totalUsed,
+                leaveBalance: totalRemaining
             });
         } catch (err) {
             console.error('Error fetching employee dashboard data:', err);
@@ -133,14 +198,27 @@ const EmployeeDashboard = () => {
             case 'in_progress':
             case 'in progress': return 'bg-blue-600 text-white';
             case 'pending': return 'bg-orange-500 text-white';
-            case 'scheduled': return 'bg-gray-500 text-white';
             default: return 'bg-gray-400 text-white';
         }
     };
 
+    const formatSafeDate = (dateString: string | null | undefined, formatStr: string) => {
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return 'N/A';
+        return format(date, formatStr);
+    };
+
     useEffect(() => {
-        fetchData();
-    }, [userInfo]);
+        if (userInfo?.id) {
+            fetchData();
+        } else {
+            const timer = setTimeout(() => {
+                if (!userInfo?.id) setLoading(false);
+            }, 5000);
+            return () => clearTimeout(timer);
+        }
+    }, [userInfo?.id]);
 
     if (loading) {
         return (
@@ -171,52 +249,56 @@ const EmployeeDashboard = () => {
                 )} */}
             </div>
 
-            {/* Metric Grid - Matching Admin Style */}
+            {/* Metric Grid - Tailored for Employee */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <StatCard
-                    title="Active Tasks"
-                    value={stats.pendingTasks}
-                    change="-2"
-                    changeText="from last week"
-                    icon={CheckSquare}
-                    color="text-orange-500"
-                />
-                <StatCard
-                    title="Efficiency"
-                    value={`${stats.attendanceRate}%`}
-                    change="+1.2%"
-                    changeText="from last month"
+                    title="Active Task Card"
+                    value={stats.activeTasks}
                     icon={Activity}
                     color="text-blue-500"
+                    description="Tasks currently in progress"
                 />
                 <StatCard
-                    title="Upcoming Leaves"
-                    value={stats.upcomingLeaves}
-                    change="0"
-                    changeText="this month"
-                    icon={CalendarCheck}
-                    color="text-red-500"
+                    title="Pending Task Card"
+                    value={stats.pendingTasks}
+                    icon={Clock}
+                    color="text-orange-500"
+                    description="Tasks waiting to be started"
                 />
                 <StatCard
-                    title="Net Payout"
-                    value={salaryDetails?.net_amount ? `₦${Number(salaryDetails.net_amount).toLocaleString()}` : "---"}
-                    changeText={salaryDetails?.status_display || "Processing"}
-                    icon={Wallet}
+                    title="Total Leaves Taken"
+                    value={stats.totalLeavesTaken}
+                    icon={Calendar}
                     color="text-purple-500"
+                    description="Days used this year"
+                />
+                <StatCard
+                    title="Leave Balance"
+                    value={stats.leaveBalance}
+                    icon={Wallet}
+                    color="text-green-500"
+                    description="Days remaining available"
                 />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Recent Tasks - Matching Admin Style */}
+                {/* Recent Tasks */}
                 <Card className="lg:col-span-2 border border-gray-100 shadow-sm">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-xl font-bold">
-                            <CheckSquare className="h-5 w-5" />
-                            Recent Tasks
-                        </CardTitle>
-                        <CardDescription>
-                            Latest task updates and assignments
-                        </CardDescription>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle className="flex items-center gap-2 text-xl font-bold">
+                                <CheckSquare className="h-5 w-5" />
+                                Recent Tasks
+                            </CardTitle>
+                            <CardDescription>
+                                Latest missions and assignments
+                            </CardDescription>
+                        </div>
+                        <NavLink to="/tasks">
+                            <Button variant="ghost" className="text-primary hover:text-primary/80">
+                                View More <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
+                        </NavLink>
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
@@ -224,28 +306,23 @@ const EmployeeDashboard = () => {
                                 recentTasks.map((task) => (
                                     <div key={task.id} className="flex items-center justify-between p-4 border border-gray-100 rounded-xl hover:bg-gray-50 transition-colors">
                                         <div className="flex-1">
-                                            <h4 className="font-semibold text-gray-900">{task.title}</h4>
+                                            <h4 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors pointer-events-none">{task.title}</h4>
                                             <p className="text-sm text-muted-foreground mt-1">
-                                                Due {format(new Date(task.due_date), 'MMM dd, yyyy')} • {task.client_details?.client_name || 'Internal'}
+                                                Due {formatSafeDate(task.due_date || task.created_at, 'MMM dd')} • {task.priority} Priority
                                             </p>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            <Badge className={cn("rounded-lg px-3 py-1 text-[10px] font-bold uppercase tracking-wider", getPriorityColor(task.priority))}>
-                                                {task.priority || 'Medium'}
+                                            <Badge className={cn(
+                                                "rounded-lg px-3 py-1 text-[10px] font-bold uppercase tracking-wider",
+                                                getStatusColor(task.status)
+                                            )}>
+                                                {task.status_display || task.status}
                                             </Badge>
-                                            <Select
-                                                value={task.status}
-                                                onValueChange={(value) => handleStatusUpdate(task.id, value)}
-                                            >
-                                                <SelectTrigger className={cn("h-7 w-[110px] text-[10px] font-bold rounded-lg border-none", getStatusColor(task.status))}>
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent className="rounded-xl border-none shadow-xl">
-                                                    <SelectItem value="pending">PENDING</SelectItem>
-                                                    <SelectItem value="in_progress">IN PROGRESS</SelectItem>
-                                                    <SelectItem value="completed">COMPLETED</SelectItem>
-                                                </SelectContent>
-                                            </Select>
+                                            <NavLink to="/tasks">
+                                                <Button size="icon" variant="ghost" className="h-8 w-8 text-gray-400 hover:text-blue-600">
+                                                    <ArrowRight className="h-4 w-4" />
+                                                </Button>
+                                            </NavLink>
                                         </div>
                                     </div>
                                 ))
@@ -259,107 +336,75 @@ const EmployeeDashboard = () => {
                     </CardContent>
                 </Card>
 
-                {/* Today's Schedule Sidebar - Matching Admin style */}
-                <Card className="border border-gray-100 shadow-sm">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-xl font-bold">
-                            <Clock className="h-5 w-5" />
-                            Today's Schedule
-                        </CardTitle>
-                        <CardDescription>
-                            Upcoming events and meetings
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-5">
-                            {/* In a real app, we'd fetch today's specific events */}
-                            <div className="flex items-center gap-4">
-                                <div className="text-sm font-bold text-gray-400 w-14">09:00 AM</div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-bold text-gray-900">Morning Sync</p>
-                                    <p className="text-xs text-muted-foreground uppercase font-black tracking-widest text-[9px]">Team Internal</p>
-                                </div>
+                {/* Schedule & Events */}
+                <div className="space-y-6">
+                    {/* Today's Schedule */}
+                    <Card className="border border-gray-100 shadow-sm">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-lg font-bold">
+                                <Clock className="h-5 w-5 text-blue-500" />
+                                Today's Schedule
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                {events.filter(e => new Date(e.date).toDateString() === new Date().toDateString()).length > 0 ? (
+                                    events.filter(e => new Date(e.date).toDateString() === new Date().toDateString()).map(event => (
+                                        <div key={event.id} className="flex items-center gap-3 p-3 rounded-xl bg-blue-50/50 border border-blue-100">
+                                            <div className="flex flex-col items-center justify-center w-12 h-12 rounded-lg bg-white border border-blue-100 shadow-sm">
+                                                <span className="text-xs font-bold text-blue-600">{(event.time || '').split(' ')[0] || '--:--'}</span>
+                                                <span className="text-[10px] text-blue-400">{(event.time || '').split(' ')[1] || ''}</span>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-bold text-gray-900 truncate">{event.title}</p>
+                                                <p className="text-[10px] font-bold text-blue-500 uppercase tracking-widest">{event.type}</p>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-6 text-muted-foreground">
+                                        <p className="text-sm">No events scheduled for today</p>
+                                    </div>
+                                )}
                             </div>
-                            <div className="flex items-center gap-4">
-                                <div className="text-sm font-bold text-gray-400 w-14">02:00 PM</div>
-                                <div className="flex-1">
-                                    <p className="text-sm font-bold text-gray-900">Project Review</p>
-                                    <p className="text-xs text-muted-foreground uppercase font-black tracking-widest text-[9px]">Client Update</p>
-                                </div>
-                            </div>
-                            <div className="pt-4 mt-4 border-t border-dashed border-gray-100">
-                                <NavLink to="/calendar">
-                                    <Button variant="ghost" className="w-full justify-between text-blue-600 hover:text-blue-700 hover:bg-blue-50/50 rounded-xl px-2">
-                                        View Full Calendar <ArrowRight className="h-4 w-4" />
-                                    </Button>
-                                </NavLink>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
+                        </CardContent>
+                    </Card>
 
-            {/* Bottom Row - Matching Admin Progress/Alerts style */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pb-8">
-                <Card className="border border-gray-100 shadow-sm">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-xl font-bold">
-                            <TrendingUp className="h-5 w-5" />
-                            Project Progress
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div>
-                            <div className="flex justify-between text-sm font-bold mb-2">
-                                <span>Tasks Completed</span>
-                                <span>{Math.round((stats.completedTasks / (stats.totalTasks || 1)) * 100)}%</span>
+                    {/* Upcoming Events */}
+                    <Card className="border border-gray-100 shadow-sm">
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2 text-lg font-bold">
+                                <CalendarDays className="h-5 w-5 text-purple-500" />
+                                Upcoming Events
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="space-y-4">
+                                {events.filter(e => new Date(e.date) > new Date()).slice(0, 3).length > 0 ? (
+                                    events.filter(e => new Date(e.date) > new Date()).slice(0, 3).map(event => (
+                                        <div key={event.id} className="flex items-center gap-3">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-purple-500"></div>
+                                            <div className="flex-1">
+                                                <p className="text-sm font-medium text-gray-900">{event.title}</p>
+                                                <p className="text-xs text-muted-foreground">{formatSafeDate(event.date, 'MMM dd')} • {event.time}</p>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div className="text-center py-6 text-muted-foreground">
+                                        <p className="text-sm">No upcoming events</p>
+                                    </div>
+                                )}
                             </div>
-                            <Progress value={(stats.completedTasks / (stats.totalTasks || 1)) * 100} className="h-2 rounded-full" />
-                        </div>
-                        <div>
-                            <div className="flex justify-between text-sm font-bold mb-2">
-                                <span>Monthly Target</span>
-                                <span>85%</span>
-                            </div>
-                            <Progress value={85} className="h-2 rounded-full bg-gray-100" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="border border-gray-100 shadow-sm">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-xl font-bold">
-                            <AlertCircle className="h-5 w-5" />
-                            System Alerts
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-4">
-                            <div className="flex items-start gap-4 p-4 bg-orange-50 border border-orange-100 rounded-xl">
-                                <AlertCircle className="h-5 w-5 text-orange-500 mt-0.5" />
-                                <div>
-                                    <p className="text-sm font-bold text-orange-900">Update required</p>
-                                    <p className="text-xs text-orange-700 font-medium">Please update your task estimates by end of day.</p>
-                                </div>
-                            </div>
-                            <div className="flex items-start gap-4 p-4 bg-green-50 border border-green-100 rounded-xl">
-                                <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5" />
-                                <div>
-                                    <p className="text-sm font-bold text-green-900">Sync successful</p>
-                                    <p className="text-xs text-green-700 font-medium">Your payroll data has been synchronized.</p>
-                                </div>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
         </div>
     );
 };
 
-const StatCard = ({ title, value, change, changeText, icon: Icon, color }: any) => {
-    const isPositive = change?.startsWith('+');
-
+const StatCard = ({ title, value, icon: Icon, color, description }: any) => {
     return (
         <Card className="border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -370,14 +415,11 @@ const StatCard = ({ title, value, change, changeText, icon: Icon, color }: any) 
             </CardHeader>
             <CardContent>
                 <div className="text-2xl font-bold tracking-tight text-gray-900">{value}</div>
-                <p className="text-[11px] font-bold mt-1">
-                    {change && (
-                        <span className={cn(isPositive ? "text-green-600" : "text-red-500", "mr-1")}>
-                            {change}
-                        </span>
-                    )}
-                    <span className="text-muted-foreground">{changeText}</span>
-                </p>
+                {description && (
+                    <p className="text-[11px] text-muted-foreground mt-1 font-medium">
+                        {description}
+                    </p>
+                )}
             </CardContent>
         </Card>
     );

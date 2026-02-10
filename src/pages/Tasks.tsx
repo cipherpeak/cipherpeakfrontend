@@ -47,6 +47,7 @@ import {
   AlertTriangle,
   IdCard
 } from 'lucide-react';
+import TaskDetailView from '@/components/TaskDetailView';
 import AddTaskModal from '@/components/modals/AddTaskModal';
 import { useToast } from '@/components/ui/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -93,9 +94,9 @@ interface Task {
   priority_display: string;
   task_type: string;
   task_type_display: string;
-  due_date: string;
-  scheduled_date: string | null;
   completed_at: string | null;
+  created_at: string;
+  updated_at: string;
   created_by: number;
   created_by_details?: {
     id: number;
@@ -123,8 +124,6 @@ const getStatusIcon = (status: string) => {
       return <PlayCircle className="h-5 w-5 text-primary" />;
     case 'pending':
       return <Clock className="h-5 w-5 text-primary" />;
-    case 'scheduled':
-      return <CalendarClock className="h-5 w-5 text-primary" />;
     default:
       return <AlertCircle className="h-5 w-5 text-primary" />;
   }
@@ -143,6 +142,7 @@ const Tasks = () => {
   const [activeTab, setActiveTab] = useState('list');
   const [filterPriority, setFilterPriority] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [mainTab, setMainTab] = useState('active');
   const { toast } = useToast();
   const userRole = useSelector((state: RootState) => state.auth.user);
   const userInfo = useSelector((state: RootState) => state.auth.userInfo);
@@ -388,8 +388,7 @@ const Tasks = () => {
   };
 
   const isOverdue = (task: Task) => {
-    if (!task.due_date) return false;
-    return new Date(task.due_date) < new Date() && task.status !== 'completed';
+    return false;
   };
 
   const getAssigneeInitials = (task: Task) => {
@@ -479,655 +478,331 @@ const Tasks = () => {
           )}
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          {/* Task List View */}
-          <TabsContent value="list" className="space-y-6 mt-0">
-            {/* Search and Filters */}
-            <Card className="bg-gradient-to-r from-background to-muted/20">
-              <CardContent className="pt-6">
-                <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4">
-                  <div className="relative flex-1 w-full">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                    <Input
-                      placeholder="Search tasks by title, description, assignee, or client..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 bg-background"
-                    />
-                  </div>
-                  <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
-                    <Select value={filterPriority} onValueChange={setFilterPriority}>
-                      <SelectTrigger className="w-full sm:w-36">
-                        <Filter className="h-4 w-4 mr-2" />
-                        <SelectValue placeholder="Priority" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Priorities</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="low">Low</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={filterStatus} onValueChange={setFilterStatus}>
-                      <SelectTrigger className="w-full sm:w-36">
-                        <SelectValue placeholder="Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="scheduled">Scheduled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center gap-2 w-full lg:w-auto">
-                    <Badge variant="secondary" className="px-3 py-1">
-                      {filteredTasks.length} tasks
-                    </Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+        {activeTab === 'details' ? (
+          <TaskDetailView
+            selectedTask={selectedTask}
+            detailLoading={detailLoading}
+            onBackToList={handleBackToList}
+          />
+        ) : (
+          <Tabs defaultValue="active" value={mainTab} onValueChange={setMainTab} className="w-full">
+            <div className="flex items-center justify-between mb-2">
+              <TabsList className="bg-muted/50 p-1 rounded-xl">
+                <TabsTrigger value="active" className="rounded-lg px-6 py-2 text-xs font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                  ACTIVE MISSIONS
+                  <Badge variant="secondary" className="ml-2 bg-blue-100 text-blue-700 border-none rounded-full px-2 py-0.5 text-[10px]">
+                    {tasks.filter(t => t.status !== 'completed').length}
+                  </Badge>
+                </TabsTrigger>
+                <TabsTrigger value="archive" className="rounded-lg px-6 py-2 text-xs font-bold data-[state=active]:bg-background data-[state=active]:shadow-sm">
+                  ARCHIVES
+                  <Badge variant="secondary" className="ml-2 bg-gray-100 text-gray-700 border-none rounded-full px-2 py-0.5 text-[10px]">
+                    {tasks.filter(t => t.status === 'completed').length}
+                  </Badge>
+                </TabsTrigger>
+              </TabsList>
 
-            {/* Task Grid */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-              {filteredTasks.map((task) => (
-                <Card key={task.id} className="group hover:shadow-lg transition-all duration-300 border-l-4 border-l-primary/50">
-                  <CardHeader className="pb-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-primary/10">
-                          {getStatusIcon(task.status)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <CardTitle className="text-lg group-hover:text-primary transition-colors truncate">
-                            {task.title}
-                          </CardTitle>
-                          <CardDescription className="flex items-center gap-1 mt-1">
-                            <span className="text-xs">{task.task_type_display}</span>
-                            {task.client_details?.client_name && (
-                              <>
-                                <span className="text-xs">•</span>
-                                <span className="text-xs">{task.client_details.client_name}</span>
-                              </>
-                            )}
-                          </CardDescription>
-                        </div>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleViewDetails(task)}>
-                            <FileText className="mr-2 h-4 w-4" />
-                            View Details
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive"
-                            onClick={() => handleDeleteTask(task.id)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {task.description || 'No description provided'}
-                      </p>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Priority</span>
-                        <Badge variant="outline" className={getPriorityColor(task.priority)}>
-                          {task.priority_display}
-                        </Badge>
-                      </div>
-
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm text-muted-foreground">Status</span>
-                        <Badge variant="outline" className={getStatusColor(task.status)}>
-                          {task.status_display}
-                        </Badge>
-                      </div>
-
-                      <Separator />
-
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-6 w-6">
-                          <AvatarFallback className="text-xs bg-primary text-primary-foreground">
-                            {getAssigneeInitials(task)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {task.assignee_details?.full_name || 'Unassigned'}
-                          </p>
-                          <p className="text-xs text-muted-foreground truncate">
-                            {task.assignee_details?.designation || 'No designation'}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between text-sm">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <Calendar className="h-4 w-4" />
-                          <span>Due: {formatDate(task.due_date)}</span>
-                        </div>
-                        {isOverdue(task) && (
-                          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
-                            Overdue
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+              <div className="hidden sm:flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest bg-muted/30 px-3 py-1.5 rounded-lg border border-muted-foreground/10">
+                <Clock4 className="h-3 w-3" />
+                Automated Categorization
+              </div>
             </div>
 
-            {/* Empty States */}
-            {filteredTasks.length === 0 && tasks.length > 0 && (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <div className="text-muted-foreground">
-                    <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p className="text-lg font-medium mb-2">No tasks found</p>
-                    <p className="text-sm">Try adjusting your search criteria</p>
+            <TabsContent value="active" className="mt-0 space-y-6">
+              {/* Search and Filters */}
+              <Card className="bg-gradient-to-r from-background to-muted/20">
+                <CardContent className="pt-6">
+                  <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4">
+                    <div className="relative flex-1 w-full">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                      <Input
+                        placeholder="Search tasks by title, description, assignee, or client..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 bg-background"
+                      />
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+                      <Select value={filterPriority} onValueChange={setFilterPriority}>
+                        <SelectTrigger className="w-full sm:w-36">
+                          <Filter className="h-4 w-4 mr-2" />
+                          <SelectValue placeholder="Priority" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Priorities</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="medium">Medium</SelectItem>
+                          <SelectItem value="low">Low</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Select value={filterStatus} onValueChange={setFilterStatus}>
+                        <SelectTrigger className="w-full sm:w-36">
+                          <SelectValue placeholder="Status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All Status</SelectItem>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="in_progress">In Progress</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-2 w-full lg:w-auto">
+                      <Badge variant="secondary" className="px-3 py-1">
+                        {filteredTasks.length} tasks
+                      </Badge>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
-            )}
 
-            {tasks.length === 0 && (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <div className="text-muted-foreground">
-                    <Plus className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p className="text-lg font-medium mb-2">No tasks yet</p>
-                    <p className="text-sm mb-4">Get started by creating your first task</p>
-                    <Button onClick={handleAddTask}>
-                      Create Task
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          {/* Task Detail View */}
-          <TabsContent value="details" className="mt-0">
-            {detailLoading ? (
-              <div className="flex items-center justify-center min-h-[400px]">
-                <div className="text-center">
-                  <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
-                  <p className="text-muted-foreground">Loading task details...</p>
-                </div>
-              </div>
-            ) : selectedTask ? (
-              <div className="space-y-6">
-                {/* Task Header */}
-                <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
-                  <CardContent className="pt-6">
-                    <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
-                      <div className="p-4 rounded-lg bg-primary/10">
-                        {getStatusIcon(selectedTask.status)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-                          <div>
-                            <h1 className="text-3xl font-bold">{selectedTask.title}</h1>
-                            <div className="flex flex-wrap items-center gap-3 mt-2">
-                              <div className="flex items-center gap-2">
-                                <Type className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-lg text-muted-foreground">
-                                  {selectedTask.task_type_display}
-                                </span>
-                              </div>
-                              <span className="text-muted-foreground">•</span>
-                              <div className="flex items-center gap-2">
-                                <Target className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-lg text-muted-foreground">
-                                  {selectedTask.priority_display} Priority
-                                </span>
-                              </div>
+              {/* Task Grid */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+                {filteredTasks.filter(t => t.status !== 'completed').length > 0 ? (
+                  filteredTasks.filter(t => t.status !== 'completed').map((task) => (
+                    <Card key={task.id} className="group hover:shadow-lg transition-all duration-300 border-l-4 border-l-primary/50">
+                      <CardHeader className="pb-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-primary/10">
+                              {getStatusIcon(task.status)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <CardTitle className="text-lg group-hover:text-primary transition-colors truncate">
+                                {task.title}
+                              </CardTitle>
+                              <CardDescription className="flex items-center gap-1 mt-1">
+                                <span className="text-xs">{task.task_type_display}</span>
+                                {task.client_details?.client_name && (
+                                  <>
+                                    <span className="text-xs">•</span>
+                                    <span className="text-xs">{task.client_details.client_name}</span>
+                                  </>
+                                )}
+                              </CardDescription>
                             </div>
                           </div>
-                          <Badge variant="outline" className={`mt-4 lg:mt-0 text-base py-1.5 px-3 ${getStatusColor(selectedTask.status)}`}>
-                            {selectedTask.status_display}
-                          </Badge>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleViewDetails(task)}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => handleDeleteTask(task.id)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
-                      </div>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {task.description || 'No description provided'}
+                          </p>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Priority</span>
+                            <Badge variant="outline" className={getPriorityColor(task.priority)}>
+                              {task.priority_display}
+                            </Badge>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Status</span>
+                            <Badge variant="outline" className={getStatusColor(task.status)}>
+                              {task.status_display}
+                            </Badge>
+                          </div>
+
+                          <Separator />
+
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                                {getAssigneeInitials(task)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">
+                                {task.assignee_details?.full_name || 'Unassigned'}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {task.assignee_details?.designation || 'No designation'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <Calendar className="h-4 w-4" />
+                              <span>Created: {formatDate(task.created_at)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))
+                ) : (
+                  <div className="col-span-full py-12 text-center text-muted-foreground bg-muted/10 rounded-2xl border-2 border-dashed border-muted/50">
+                    <Clock className="h-10 w-10 mx-auto mb-3 opacity-20" />
+                    <p className="font-medium">No active missions found.</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Empty States */}
+              {filteredTasks.length === 0 && tasks.length > 0 && (
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <div className="text-muted-foreground">
+                      <Search className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg font-medium mb-2">No tasks found</p>
+                      <p className="text-sm">Try adjusting your search criteria</p>
                     </div>
                   </CardContent>
                 </Card>
+              )}
 
-                {/* Quick Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <StatCard
-                    icon={CalendarDays}
-                    label="Due Date"
-                    value={formatDate(selectedTask.due_date)}
-                  />
-                  <StatCard
-                    icon={Clock4}
-                    label="Created"
-                    value={formatDate(selectedTask.created_at)}
-                  />
-                  <StatCard
-                    icon={Flag}
-                    label="Priority"
-                    value={selectedTask.priority_display}
-                  />
-                  <StatCard
-                    icon={BarChart3}
-                    label="Type"
-                    value={selectedTask.task_type_display}
-                  />
-                </div>
-
-                <Tabs defaultValue="overview" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto p-1 bg-muted/50">
-                    <TabsTrigger value="overview" className="flex items-center gap-2 py-3">
-                      <FileText className="h-4 w-4" />
-                      <span className="hidden sm:inline">Overview</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="assignee" className="flex items-center gap-2 py-3">
-                      <User className="h-4 w-4" />
-                      <span className="hidden sm:inline">Assignee</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="client" className="flex items-center gap-2 py-3">
-                      <Building className="h-4 w-4" />
-                      <span className="hidden sm:inline">Client</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="timeline" className="flex items-center gap-2 py-3">
-                      <Clock className="h-4 w-4" />
-                      <span className="hidden sm:inline">Timeline</span>
-                    </TabsTrigger>
-                  </TabsList>
-
-                  {/* Overview Tab */}
-                  <TabsContent value="overview" className="space-y-6 mt-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <FileText className="h-5 w-5" />
-                            Task Details
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                            <Type className="h-5 w-5 text-primary" />
-                            <div>
-                              <p className="text-sm text-muted-foreground">Task Type</p>
-                              <p className="font-medium">{selectedTask.task_type_display}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                            <Flag className="h-5 w-5 text-primary" />
-                            <div>
-                              <p className="text-sm text-muted-foreground">Priority</p>
-                              <p className="font-medium">{selectedTask.priority_display}</p>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                            <BarChart3 className="h-5 w-5 text-primary" />
-                            <div>
-                              <p className="text-sm text-muted-foreground">Status</p>
-                              <p className="font-medium">{selectedTask.status_display}</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <Calendar className="h-5 w-5" />
-                            Timeline Information
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent className="space-y-4">
-                          <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                            <CalendarDays className="h-5 w-5 text-primary" />
-                            <div>
-                              <p className="text-sm text-muted-foreground">Due Date</p>
-                              <p className="font-medium">{formatDateTime(selectedTask.due_date)}</p>
-                            </div>
-                          </div>
-                          {selectedTask.scheduled_date && (
-                            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                              <CalendarClock className="h-5 w-5 text-primary" />
-                              <div>
-                                <p className="text-sm text-muted-foreground">Scheduled Date</p>
-                                <p className="font-medium">{formatDateTime(selectedTask.scheduled_date)}</p>
-                              </div>
-                            </div>
-                          )}
-                          {selectedTask.completed_at && (
-                            <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                              <FileCheck className="h-5 w-5 text-primary" />
-                              <div>
-                                <p className="text-sm text-muted-foreground">Completed At</p>
-                                <p className="font-medium">{formatDateTime(selectedTask.completed_at)}</p>
-                              </div>
-                            </div>
-                          )}
-                          {isOverdue(selectedTask) && (
-                            <div className="flex items-center gap-3 p-3 rounded-lg bg-red-50 border border-red-200">
-                              <AlertTriangle className="h-5 w-5 text-red-600" />
-                              <div>
-                                <p className="text-sm text-red-600 font-medium">This task is overdue</p>
-                                <p className="text-xs text-red-600">Please complete it as soon as possible</p>
-                              </div>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
+              {tasks.length === 0 && (
+                <Card>
+                  <CardContent className="text-center py-12">
+                    <div className="text-muted-foreground">
+                      <Plus className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg font-medium mb-2">No tasks yet</p>
+                      <p className="text-sm mb-4">Get started by creating your first task</p>
+                      <Button onClick={handleAddTask}>
+                        Create Task
+                      </Button>
                     </div>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
 
-                    {/* Description Card */}
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <FileText className="h-5 w-5" />
-                          Description
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="prose max-w-none">
-                          {selectedTask.description ? (
-                            <p className="text-muted-foreground whitespace-pre-wrap">{selectedTask.description}</p>
-                          ) : (
-                            <p className="text-muted-foreground italic">No description provided</p>
-                          )}
+
+
+            <TabsContent value="archive" className="mt-0">
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
+                {filteredTasks.filter(t => t.status === 'completed').length > 0 ? (
+                  filteredTasks.filter(t => t.status === 'completed').map((task) => (
+                    <Card key={task.id} className="group hover:shadow-lg transition-all duration-300 border-l-4 border-l-green-500/50">
+                      <CardHeader className="pb-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-lg bg-green-50">
+                              {getStatusIcon(task.status)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <CardTitle className="text-lg group-hover:text-primary transition-colors truncate">
+                                {task.title}
+                              </CardTitle>
+                              <CardDescription className="flex items-center gap-1 mt-1">
+                                <span className="text-xs">{task.task_type_display}</span>
+                                {task.client_details?.client_name && (
+                                  <>
+                                    <span className="text-xs">•</span>
+                                    <span className="text-xs">{task.client_details.client_name}</span>
+                                  </>
+                                )}
+                              </CardDescription>
+                            </div>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleViewDetails(task)}>
+                                <FileText className="mr-2 h-4 w-4" />
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                className="text-destructive"
+                                onClick={() => handleDeleteTask(task.id)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  {/* Assignee Tab */}
-                  <TabsContent value="assignee" className="space-y-6 mt-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <User className="h-5 w-5" />
-                          Assignee Information
-                        </CardTitle>
                       </CardHeader>
                       <CardContent>
-                        {selectedTask.assignee_details ? (
-                          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-6">
-                            <Avatar className="h-16 w-16 ring-4 ring-background shadow-lg">
-                              <AvatarFallback className="text-lg bg-gradient-to-br from-primary to-primary/70 text-primary-foreground">
-                                {getAssigneeInitials(selectedTask)}
+                        <div className="space-y-3">
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {task.description || 'No description provided'}
+                          </p>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Priority</span>
+                            <Badge variant="outline" className={getPriorityColor(task.priority)}>
+                              {task.priority_display}
+                            </Badge>
+                          </div>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Status</span>
+                            <Badge variant="outline" className={getStatusColor(task.status)}>
+                              {task.status_display}
+                            </Badge>
+                          </div>
+
+                          <Separator />
+
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-6 w-6">
+                              <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                                {getAssigneeInitials(task)}
                               </AvatarFallback>
                             </Avatar>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1">
-                              <div className="space-y-4">
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                  <User className="h-5 w-5 text-primary" />
-                                  <div>
-                                    <p className="text-sm text-muted-foreground">Full Name</p>
-                                    <p className="font-medium">{selectedTask.assignee_details.full_name}</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                  <Briefcase className="h-5 w-5 text-primary" />
-                                  <div>
-                                    <p className="text-sm text-muted-foreground">Designation</p>
-                                    <p className="font-medium">{selectedTask.assignee_details.designation}</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                  <Building className="h-5 w-5 text-primary" />
-                                  <div>
-                                    <p className="text-sm text-muted-foreground">Department</p>
-                                    <p className="font-medium">{selectedTask.assignee_details.department}</p>
-                                  </div>
-                                </div>
-                              </div>
-                              <div className="space-y-4">
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                  <Mail className="h-5 w-5 text-primary" />
-                                  <div>
-                                    <p className="text-sm text-muted-foreground">Email</p>
-                                    <p className="font-medium">{selectedTask.assignee_details.email}</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                  <Phone className="h-5 w-5 text-primary" />
-                                  <div>
-                                    <p className="text-sm text-muted-foreground">Phone</p>
-                                    <p className="font-medium">{selectedTask.assignee_details.phone_number || 'N/A'}</p>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                  <IdCard className="h-5 w-5 text-primary" />
-                                  <div>
-                                    <p className="text-sm text-muted-foreground">Employee ID</p>
-                                    <p className="font-medium">{selectedTask.assignee_details.employee_id}</p>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="text-center py-8 text-muted-foreground">
-                            <User className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                            <p>No assignee information available</p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-                  <TabsContent value="client" className="space-y-6 mt-6">
-                    {selectedTask.client_details ? (
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="flex items-center gap-2">
-                            <Building className="h-5 w-5" />
-                            Client Information
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                            <div className="space-y-4">
-                              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                <Building className="h-5 w-5 text-primary" />
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Client Name</p>
-                                  <p className="font-medium">{selectedTask.client_details.client_name}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                <Briefcase className="h-5 w-5 text-primary" />
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Company</p>
-                                  <p className="font-medium">{selectedTask.client_details.company || 'N/A'}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                <Mail className="h-5 w-5 text-primary" />
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Email</p>
-                                  <p className="font-medium">{selectedTask.client_details.email || 'N/A'}</p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                <Phone className="h-5 w-5 text-primary" />
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Phone</p>
-                                  <p className="font-medium">{selectedTask.client_details.phone || 'N/A'}</p>
-                                </div>
-                              </div>
-                            </div>
-                            <div className="space-y-4">
-                              {selectedTask.client_details.address && (
-                                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
-                                  <MapPin className="h-5 w-5 text-primary mt-0.5" />
-                                  <div>
-                                    <p className="text-sm text-muted-foreground">Address</p>
-                                    <p className="font-medium">
-                                      {selectedTask.client_details.address}
-                                      {selectedTask.client_details.city && `, ${selectedTask.client_details.city}`}
-                                      {selectedTask.client_details.state && `, ${selectedTask.client_details.state}`}
-                                      {selectedTask.client_details.postal_code && `, ${selectedTask.client_details.postal_code}`}
-                                      {selectedTask.client_details.country && `, ${selectedTask.client_details.country}`}
-                                    </p>
-                                  </div>
-                                </div>
-                              )}
-                              {selectedTask.client_details.contract_start_date && (
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                  <Calendar className="h-5 w-5 text-primary" />
-                                  <div>
-                                    <p className="text-sm text-muted-foreground">Contract Start</p>
-                                    <p className="font-medium">{formatDate(selectedTask.client_details.contract_start_date)}</p>
-                                  </div>
-                                </div>
-                              )}
-                              {selectedTask.client_details.contract_end_date && (
-                                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                  <Calendar className="h-5 w-5 text-primary" />
-                                  <div>
-                                    <p className="text-sm text-muted-foreground">Contract End</p>
-                                    <p className="font-medium">{formatDate(selectedTask.client_details.contract_end_date)}</p>
-                                  </div>
-                                </div>
-                              )}
-                              <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                                <Users className="h-5 w-5 text-primary" />
-                                <div>
-                                  <p className="text-sm text-muted-foreground">Status</p>
-                                  <p className="font-medium">
-                                    {selectedTask.client_details.is_active_client ? 'Active Client' : 'Inactive Client'}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ) : (
-                      <Card>
-                        <CardContent className="text-center py-12">
-                          <Building className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p className="text-muted-foreground">No client assigned to this task</p>
-                        </CardContent>
-                      </Card>
-                    )}
-                  </TabsContent>
-
-                  {/* Timeline Tab */}
-                  <TabsContent value="timeline" className="space-y-6 mt-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Clock className="h-5 w-5" />
-                          Task Timeline
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-6">
-                          <div className="flex items-start gap-4">
-                            <div className="flex flex-col items-center">
-                              <div className="w-3 h-3 bg-green-500 rounded-full mt-1.5"></div>
-                              <div className="w-0.5 h-16 bg-green-200 mt-2"></div>
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-medium">Task Created</p>
-                              <p className="text-sm text-muted-foreground">
-                                by {selectedTask.created_by_details ? getFullName(selectedTask.created_by_details) : 'Unknown User'}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate">
+                                {task.assignee_details?.full_name || 'Unassigned'}
                               </p>
-                              <p className="text-xs text-muted-foreground mt-1">{formatDateTime(selectedTask.created_at)}</p>
+                              <p className="text-xs text-muted-foreground truncate">
+                                {task.assignee_details?.designation || 'No designation'}
+                              </p>
                             </div>
                           </div>
 
-                          {selectedTask.scheduled_date && (
-                            <div className="flex items-start gap-4">
-                              <div className="flex flex-col items-center">
-                                <div className="w-3 h-3 bg-blue-500 rounded-full mt-1.5"></div>
-                                <div className="w-0.5 h-16 bg-blue-200 mt-2"></div>
-                              </div>
-                              <div className="flex-1">
-                                <p className="font-medium">Task Scheduled</p>
-                                <p className="text-sm text-muted-foreground">Scheduled for execution</p>
-                                <p className="text-xs text-muted-foreground mt-1">{formatDateTime(selectedTask.scheduled_date)}</p>
-                              </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <CheckCircle2 className="h-4 w-4 text-green-500" />
+                              <span className="text-xs">Completed: {task.completed_at || task.updated_at ? formatDate(task.completed_at || task.updated_at) : 'Date Unknown'}</span>
                             </div>
-                          )}
 
-                          <div className="flex items-start gap-4">
-                            <div className="flex flex-col items-center">
-                              <div className="w-3 h-3 bg-yellow-500 rounded-full mt-1.5"></div>
-                              <div className="w-0.5 h-16 bg-yellow-200 mt-2"></div>
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-medium">Due Date</p>
-                              <p className="text-sm text-muted-foreground">Task deadline</p>
-                              <p className="text-xs text-muted-foreground mt-1">{formatDateTime(selectedTask.due_date)}</p>
-                              {isOverdue(selectedTask) && (
-                                <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 mt-2">
-                                  Overdue
-                                </Badge>
-                              )}
-                            </div>
-                          </div>
-
-                          {selectedTask.completed_at && (
-                            <div className="flex items-start gap-4">
-                              <div className="flex flex-col items-center">
-                                <div className="w-3 h-3 bg-green-500 rounded-full mt-1.5"></div>
-                              </div>
-                              <div className="flex-1">
-                                <p className="font-medium">Task Completed</p>
-                                <p className="text-sm text-muted-foreground">Successfully finished</p>
-                                <p className="text-xs text-muted-foreground mt-1">{formatDateTime(selectedTask.completed_at)}</p>
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="flex items-start gap-4">
-                            <div className="flex flex-col items-center">
-                              <div className="w-3 h-3 bg-gray-500 rounded-full mt-1.5"></div>
-                            </div>
-                            <div className="flex-1">
-                              <p className="font-medium">Last Updated</p>
-                              <p className="text-sm text-muted-foreground">Latest modifications</p>
-                              <p className="text-xs text-muted-foreground mt-1">{formatDateTime(selectedTask.updated_at)}</p>
-                            </div>
                           </div>
                         </div>
                       </CardContent>
                     </Card>
-                  </TabsContent>
-                </Tabs>
+                  ))
+                ) : (
+                  <div className="col-span-full py-12 text-center text-muted-foreground bg-muted/10 rounded-2xl border-2 border-dashed border-muted/50">
+                    <CheckCircle2 className="h-12 w-12 mx-auto mb-4 opacity-20" />
+                    <p className="text-lg font-bold">No Archived Missions</p>
+                    <p className="text-sm">Completed missions will appear here.</p>
+                  </div>
+                )}
               </div>
-            ) : (
-              <Card>
-                <CardContent className="text-center py-12">
-                  <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-muted-foreground">No task data available</p>
-                  <Button onClick={handleBackToList} className="mt-4">
-                    Back to Task List
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-        </Tabs>
+            </TabsContent>
+          </Tabs>
+        )}
       </div>
 
       {/* Add/Edit Task Modal */}
-      <AddTaskModal
+      < AddTaskModal
         open={isAddTaskModalOpen}
         onOpenChange={handleModalClose}
         onTaskCreated={handleTaskCreated}

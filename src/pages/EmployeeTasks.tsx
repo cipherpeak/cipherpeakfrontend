@@ -45,10 +45,8 @@ interface Task {
     priority_display: string;
     status: string;
     status_display: string;
-    due_date: string;
     created_at: string;
     updated_at: string;
-    scheduled_date: string | null;
     completed_at: string | null;
     task_type_display?: string;
     client_details?: {
@@ -64,7 +62,26 @@ const EmployeeTasks = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
     const userInfo = useSelector((state: RootState) => state.auth.userInfo);
+    const [detailLoading, setDetailLoading] = useState(false);
     const { toast } = useToast();
+
+    const fetchTaskDetails = async (taskId: number) => {
+        setDetailLoading(true);
+        try {
+            const response = await axiosInstance.get(`tasks/task_details/${taskId}/`);
+            setSelectedTask(response.data);
+            setActiveTab('details');
+        } catch (err) {
+            console.error('Error fetching task details:', err);
+            toast({
+                title: 'Error',
+                description: 'Failed to load task details',
+                variant: 'destructive'
+            });
+        } finally {
+            setDetailLoading(false);
+        }
+    };
 
     const fetchTasks = async () => {
         setLoading(true);
@@ -141,9 +158,15 @@ const EmployeeTasks = () => {
             case 'in_progress':
             case 'in progress': return 'bg-blue-600 text-white';
             case 'pending': return 'bg-orange-500 text-white';
-            case 'scheduled': return 'bg-gray-500 text-white';
             default: return 'bg-gray-400 text-white';
         }
+    };
+
+    const formatSafeDate = (dateString: string | null | undefined, formatStr: string) => {
+        if (!dateString) return 'N/A';
+        const date = new Date(dateString);
+        if (isNaN(date.getTime())) return 'N/A';
+        return format(date, formatStr);
     };
 
     if (loading && tasks.length === 0) {
@@ -173,7 +196,7 @@ const EmployeeTasks = () => {
                     { label: 'Total', value: stats.total, icon: Target, color: 'text-gray-400' },
                     { label: 'Active', value: stats.inProgress, icon: Zap, color: 'text-blue-500' },
                     { label: 'Cleared', value: stats.completed, icon: CheckCircle, color: 'text-green-500' },
-                    { label: 'Queued', value: stats.pending, icon: CalendarClock, color: 'text-orange-500' }
+                    { label: 'Queued', value: stats.pending, icon: Clock, color: 'text-orange-500' }
                 ].map((stat, i) => (
                     <Card key={i} className="border border-gray-100 shadow-sm">
                         <CardContent className="p-6">
@@ -203,7 +226,7 @@ const EmployeeTasks = () => {
 
                         <div className="flex items-center gap-2 p-1 bg-gray-50 rounded-xl">
                             <Button
-                                variant={viewMode === 'grid' ? 'white' : 'ghost'}
+                                variant={viewMode === 'grid' ? 'secondary' : 'ghost'}
                                 size="sm"
                                 className={cn("rounded-lg h-9 w-10 p-0 shadow-none hover:bg-white", viewMode === 'grid' && "bg-white shadow-sm font-bold")}
                                 onClick={() => setViewMode('grid')}
@@ -211,7 +234,7 @@ const EmployeeTasks = () => {
                                 <LayoutGrid className="h-4 w-4" />
                             </Button>
                             <Button
-                                variant={viewMode === 'list' ? 'white' : 'ghost'}
+                                variant={viewMode === 'list' ? 'secondary' : 'ghost'}
                                 size="sm"
                                 className={cn("rounded-lg h-9 w-10 p-0 shadow-none hover:bg-white", viewMode === 'list' && "bg-white shadow-sm font-bold")}
                                 onClick={() => setViewMode('list')}
@@ -234,7 +257,7 @@ const EmployeeTasks = () => {
                                         "group relative border border-gray-100 bg-white hover:border-blue-100 hover:shadow-md transition-all duration-300 cursor-pointer overflow-hidden",
                                         viewMode === 'grid' ? "rounded-2xl" : "rounded-xl border-l-4 border-l-transparent hover:border-l-blue-500"
                                     )}
-                                    onClick={() => { setSelectedTask(task); setActiveTab('details'); }}
+                                    onClick={() => fetchTaskDetails(task.id)}
                                 >
                                     {viewMode === 'grid' ? (
                                         <CardContent className="p-5 flex flex-col h-full">
@@ -244,19 +267,28 @@ const EmployeeTasks = () => {
                                                     {task.priority_display}
                                                 </Badge>
                                                 <div onClick={(e) => e.stopPropagation()}>
-                                                    <Select
-                                                        value={task.status}
-                                                        onValueChange={(value) => handleStatusUpdate(task.id, value)}
-                                                    >
-                                                        <SelectTrigger className={cn("h-6 w-auto gap-2 px-2 text-[10px] font-bold rounded-full border-none focus:ring-0", getStatusColor(task.status))}>
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent className="rounded-xl border-gray-100 shadow-xl">
-                                                            <SelectItem value="pending">PENDING</SelectItem>
-                                                            <SelectItem value="in_progress">IN PROGRESS</SelectItem>
-                                                            <SelectItem value="completed">COMPLETED</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
+                                                    {task.status === 'completed' ? (
+                                                        <Badge className="rounded-lg px-3 py-1 text-[10px] font-bold uppercase tracking-wider bg-green-100 text-green-700 border-green-200">
+                                                            COMPLETED
+                                                        </Badge>
+                                                    ) : task.status === 'in_progress' ? (
+                                                        <Button
+                                                            size="sm"
+                                                            className="h-7 text-[10px] font-bold rounded-lg bg-green-600 hover:bg-green-700 text-white"
+                                                            onClick={() => handleStatusUpdate(task.id, 'completed')}
+                                                        >
+                                                            SUBMIT TASK
+                                                        </Button>
+                                                    ) : (
+                                                        <Button
+                                                            size="sm"
+                                                            className="h-7 text-[10px] font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                                                            disabled={tasks.some(t => t.status === 'in_progress')}
+                                                            onClick={() => handleStatusUpdate(task.id, 'in_progress')}
+                                                        >
+                                                            START
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </div>
 
@@ -277,8 +309,8 @@ const EmployeeTasks = () => {
                                                         <Calendar className="h-3.5 w-3.5" />
                                                     </div>
                                                     <div className="flex flex-col">
-                                                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Due Date</span>
-                                                        <span className="text-xs font-semibold text-gray-700">{format(new Date(task.due_date), 'MMM dd, yyyy')}</span>
+                                                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Created</span>
+                                                        <span className="text-xs font-semibold text-gray-700">{formatSafeDate(task.created_at, 'MMM dd, yyyy')}</span>
                                                     </div>
                                                 </div>
 
@@ -307,24 +339,33 @@ const EmployeeTasks = () => {
 
                                             <div className="flex items-center gap-6">
                                                 <div className="flex flex-col items-end min-w-[100px]">
-                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Due</span>
-                                                    <span className="text-xs font-bold text-gray-700">{format(new Date(task.due_date), 'MMM dd')}</span>
+                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Created</span>
+                                                    <span className="text-xs font-bold text-gray-700">{formatSafeDate(task.created_at, 'MMM dd')}</span>
                                                 </div>
 
-                                                <div onClick={(e) => e.stopPropagation()} className="min-w-[120px]">
-                                                    <Select
-                                                        value={task.status}
-                                                        onValueChange={(value) => handleStatusUpdate(task.id, value)}
-                                                    >
-                                                        <SelectTrigger className={cn("h-7 w-full text-[10px] font-bold rounded-lg border-none focus:ring-0", getStatusColor(task.status))}>
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent className="rounded-xl border-gray-100 shadow-xl">
-                                                            <SelectItem value="pending">PENDING</SelectItem>
-                                                            <SelectItem value="in_progress">IN PROGRESS</SelectItem>
-                                                            <SelectItem value="completed">COMPLETED</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
+                                                <div onClick={(e) => e.stopPropagation()} className="min-w-[120px] flex justify-end">
+                                                    {task.status === 'completed' ? (
+                                                        <Badge className="rounded-lg px-3 py-1 text-[10px] font-bold uppercase tracking-wider bg-green-100 text-green-700 border-green-200">
+                                                            COMPLETED
+                                                        </Badge>
+                                                    ) : task.status === 'in_progress' ? (
+                                                        <Button
+                                                            size="sm"
+                                                            className="h-7 text-[10px] font-bold rounded-lg bg-green-600 hover:bg-green-700 text-white"
+                                                            onClick={() => handleStatusUpdate(task.id, 'completed')}
+                                                        >
+                                                            SUBMIT TASK
+                                                        </Button>
+                                                    ) : (
+                                                        <Button
+                                                            size="sm"
+                                                            className="h-7 text-[10px] font-bold rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                                                            disabled={tasks.some(t => t.status === 'in_progress')}
+                                                            onClick={() => handleStatusUpdate(task.id, 'in_progress')}
+                                                        >
+                                                            START
+                                                        </Button>
+                                                    )}
                                                 </div>
                                                 <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-blue-500 transition-colors" />
                                             </div>
@@ -391,17 +432,37 @@ const EmployeeTasks = () => {
                                                 <div className="relative">
                                                     <div className="absolute -left-[32px] top-1.5 w-4 h-4 bg-blue-500 border-4 border-white rounded-full shadow-sm ring-4 ring-blue-50"></div>
                                                     <div className="space-y-1">
-                                                        <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">DEPLOYED</p>
-                                                        <p className="font-bold text-gray-900">{format(new Date(selectedTask.created_at), 'MMMM dd, yyyy HH:mm')}</p>
+                                                        <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">MISSION DEPLOYED</p>
+                                                        <p className="font-bold text-gray-900">{formatSafeDate(selectedTask.created_at || selectedTask.created, 'MMMM dd, yyyy HH:mm')}</p>
                                                     </div>
                                                 </div>
-                                                <div className="relative">
-                                                    <div className="absolute -left-[32px] top-1.5 w-4 h-4 bg-red-500 border-4 border-white rounded-full shadow-sm ring-4 ring-red-50"></div>
-                                                    <div className="space-y-1">
-                                                        <p className="text-[10px] font-bold text-red-600 uppercase tracking-widest">CRITICAL DEADLINE</p>
-                                                        <p className="font-bold text-gray-900">{format(new Date(selectedTask.due_date), 'MMMM dd, yyyy HH:mm')}</p>
+                                                {(selectedTask.status === 'in_progress' || selectedTask.status === 'completed') && (
+                                                    <div className="relative">
+                                                        <div className="absolute -left-[32px] top-1.5 w-4 h-4 bg-orange-500 border-4 border-white rounded-full shadow-sm ring-4 ring-orange-50"></div>
+                                                        <div className="space-y-1">
+                                                            <p className="text-[10px] font-bold text-orange-600 uppercase tracking-widest">COMMENCED WORK</p>
+                                                            <p className="font-bold text-gray-900">{formatSafeDate(selectedTask.updated_at || selectedTask.updated || selectedTask.commenced_at, 'MMMM dd, yyyy HH:mm')}</p>
+                                                        </div>
                                                     </div>
-                                                </div>
+                                                )}
+                                                {selectedTask.status === 'completed' && (
+                                                    <div className="relative">
+                                                        <div className="absolute -left-[32px] top-1.5 w-4 h-4 bg-green-500 border-4 border-white rounded-full shadow-sm ring-4 ring-green-50"></div>
+                                                        <div className="space-y-1">
+                                                            <p className="text-[10px] font-bold text-green-600 uppercase tracking-widest">MISSION ACCOMPLISHED</p>
+                                                            <p className="font-bold text-gray-900">{formatSafeDate(selectedTask.completed_at || selectedTask.updated_at || selectedTask.updated, 'MMMM dd, yyyy HH:mm')}</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                {selectedTask.status !== 'completed' && (
+                                                    <div className="relative opacity-50">
+                                                        <div className="absolute -left-[32px] top-1.5 w-4 h-4 bg-gray-200 border-4 border-white rounded-full shadow-sm ring-4 ring-gray-100"></div>
+                                                        <div className="space-y-1">
+                                                            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">AWAITING COMPLETION</p>
+                                                            <p className="text-xs font-bold text-gray-400">Ready for submission</p>
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </CardContent>
                                     </Card>
@@ -414,20 +475,30 @@ const EmployeeTasks = () => {
                                         </CardHeader>
                                         <CardContent className="p-6 space-y-6">
                                             <div className="space-y-3">
-                                                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Override Status</label>
-                                                <Select
-                                                    value={selectedTask.status}
-                                                    onValueChange={(value) => handleStatusUpdate(selectedTask.id, value)}
-                                                >
-                                                    <SelectTrigger className={cn("h-12 rounded-xl text-xs font-bold border-gray-100", getStatusColor(selectedTask.status))}>
-                                                        <SelectValue />
-                                                    </SelectTrigger>
-                                                    <SelectContent className="rounded-xl border-none shadow-xl">
-                                                        <SelectItem value="pending">PENDING</SelectItem>
-                                                        <SelectItem value="in_progress">IN PROGRESS</SelectItem>
-                                                        <SelectItem value="completed">COMPLETED</SelectItem>
-                                                    </SelectContent>
-                                                </Select>
+                                                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Task Action</label>
+                                                <div className="w-full">
+                                                    {selectedTask.status === 'completed' ? (
+                                                        <div className="flex items-center justify-center p-3 bg-green-50 text-green-700 rounded-xl border border-green-100 font-bold text-sm">
+                                                            <CheckCircle2 className="h-4 w-4 mr-2" />
+                                                            MISSION COMPLETED
+                                                        </div>
+                                                    ) : selectedTask.status === 'in_progress' ? (
+                                                        <Button
+                                                            className="w-full h-12 rounded-xl bg-green-600 hover:bg-green-700 text-white font-bold"
+                                                            onClick={() => handleStatusUpdate(selectedTask.id, 'completed')}
+                                                        >
+                                                            SUBMIT TASK
+                                                        </Button>
+                                                    ) : (
+                                                        <Button
+                                                            className="w-full h-12 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold disabled:opacity-50"
+                                                            disabled={tasks.some(t => t.status === 'in_progress')}
+                                                            onClick={() => handleStatusUpdate(selectedTask.id, 'in_progress')}
+                                                        >
+                                                            START MISSION
+                                                        </Button>
+                                                    )}
+                                                </div>
                                             </div>
 
                                             <div className="p-4 bg-gray-50 rounded-2xl flex items-center justify-between">

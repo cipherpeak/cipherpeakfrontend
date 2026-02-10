@@ -79,8 +79,6 @@ const AddTaskModal = ({
     status: 'pending',
     task_type: '',
   });
-  const [dueDate, setDueDate] = useState<Date>();
-  const [scheduledDate, setScheduledDate] = useState<Date>();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(false);
@@ -182,14 +180,6 @@ const AddTaskModal = ({
         status: taskToEdit.status || 'pending',
         task_type: taskToEdit.task_type || '',
       });
-
-      if (taskToEdit.due_date) {
-        setDueDate(new Date(taskToEdit.due_date));
-      }
-
-      if (taskToEdit.scheduled_date) {
-        setScheduledDate(new Date(taskToEdit.scheduled_date));
-      }
     } else if (open && mode === 'add') {
       // Reset form for new task
       resetForm();
@@ -207,17 +197,11 @@ const AddTaskModal = ({
       toast({ title: 'Error', description: 'Please select a client', variant: 'destructive' });
       return;
     }
-    if (!dueDate) {
-      toast({ title: 'Error', description: 'Please select a due date', variant: 'destructive' });
-      return;
-    }
 
     setLoading(true);
     try {
       const payload = {
         ...formData,
-        due_date: format(dueDate, 'yyyy-MM-dd'),
-        scheduled_date: scheduledDate ? format(scheduledDate, 'yyyy-MM-dd') : null,
       };
 
       if (mode === 'add') {
@@ -255,8 +239,6 @@ const AddTaskModal = ({
       status: 'pending',
       task_type: '',
     });
-    setDueDate(undefined);
-    setScheduledDate(undefined);
   };
 
   const handleInputChange = (field: string, value: string) => {
@@ -438,61 +420,6 @@ const AddTaskModal = ({
               </Select>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Due Date *</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !dueDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dueDate ? format(dueDate, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={dueDate}
-                      onSelect={setDueDate}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Scheduled Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal",
-                        !scheduledDate && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {scheduledDate ? format(scheduledDate, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={scheduledDate}
-                      onSelect={setScheduledDate}
-                      initialFocus
-                      className="pointer-events-auto"
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-            </div>
 
             <div className="text-xs text-muted-foreground">
               <p>* Required fields</p>
@@ -512,7 +439,7 @@ const AddTaskModal = ({
             <Button
               type="submit"
               className="w-full sm:w-auto"
-              disabled={loading || !formData.title || !formData.assignee || !formData.client || !dueDate}
+              disabled={loading || !formData.title || !formData.assignee || !formData.client}
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {mode === 'edit' ? 'Update Task' : 'Create Task'}

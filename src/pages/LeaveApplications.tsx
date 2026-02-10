@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -83,6 +83,8 @@ const LeaveApplications = () => {
     const [selectedApplication, setSelectedApplication] = useState<LeaveApplication | null>(null);
     const [loading, setLoading] = useState(true);
     const [processing, setProcessing] = useState(false);
+    const [searchParams] = useSearchParams();
+    const leaveId = searchParams.get('id');
 
     // Filter states
     const [fromDate, setFromDate] = useState('');
@@ -101,6 +103,16 @@ const LeaveApplications = () => {
         fetchApplications();
         fetchEmployees();
     }, []);
+
+    useEffect(() => {
+        if (leaveId && applications.length > 0) {
+            const app = applications.find(a => a.id === parseInt(leaveId));
+            if (app) {
+                console.log('Deep-linking selected application:', app);
+                setSelectedApplication(app);
+            }
+        }
+    }, [leaveId, applications]);
 
     const fetchEmployees = async () => {
         try {

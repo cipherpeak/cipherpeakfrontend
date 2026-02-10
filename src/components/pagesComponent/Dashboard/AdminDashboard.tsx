@@ -1,72 +1,150 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+
+import { Button } from '@/components/ui/button';
 import {
     Users,
     UserCheck,
     CheckSquare,
     Calendar,
-    TrendingUp,
     Clock,
-    AlertCircle,
+    ArrowRight,
 } from 'lucide-react';
+import axiosInstance from '@/axios/axios';
+import { requests } from '@/lib/urls';
+import { toast } from 'sonner';
+import { format, isToday } from 'date-fns';
+
+interface DashboardStats {
+    totalEmployees: number;
+    activeClients: number;
+    pendingTasks: number;
+    todaysEvents: number;
+}
+
+interface Task {
+    id: number;
+    title: string;
+    assignee_details?: { full_name: string };
+    status: string;
+    priority: string;
+}
+
+interface Event {
+    id: number;
+    title: string;
+    event_type: string;
+    start_date: string;
+    start_time?: string;
+}
 
 const AdminDashboard = () => {
-    const [stats] = useState([
-        { title: 'Total Employees', value: '24', change: '+2', icon: Users, color: 'text-primary' },
-        { title: 'Active Clients', value: '18', change: '+3', icon: UserCheck, color: 'text-success' },
-        { title: 'Pending Tasks', value: '12', change: '-4', icon: CheckSquare, color: 'text-warning' },
-        { title: 'Today\'s Events', value: '5', change: '+1', icon: Calendar, color: 'text-danger' },
-    ]);
+    const [loading, setLoading] = useState(true);
+    const [stats, setStats] = useState<DashboardStats>({
+        totalEmployees: 0,
+        activeClients: 0,
+        pendingTasks: 0,
+        todaysEvents: 0,
+    });
+    const [recentTasks, setRecentTasks] = useState<Task[]>([]);
+    const [upcomingEvents, setUpcomingEvents] = useState<Event[]>([]);
+    const [allUpcomingEvents, setAllUpcomingEvents] = useState<Event[]>([]);
 
-    const [recentTasks] = useState([
-        {
-            id: 1,
-            title: "Social Media Strategy",
-            assignee_details: { full_name: "Jane Smith" },
-            status: "In Progress",
-            priority: "High",
-        },
-        {
-            id: 2,
-            title: "Content Creation",
-            assignee_details: { full_name: "Mike Wilson" },
-            status: "Pending",
-            priority: "Medium",
-        },
-        {
-            id: 3,
-            title: "Client Meeting",
-            assignee_details: { full_name: "Admin User" },
-            status: "Scheduled",
-            priority: "High",
-        },
-        {
-            id: 4,
-            title: "Website Audit",
-            assignee_details: { full_name: "Sarah Jones" },
-            status: "Completed",
-            priority: "Low",
-        },
-        {
-            id: 5,
-            title: "Email Campaign",
-            assignee_details: { full_name: "Mike Wilson" },
-            status: "In Progress",
-            priority: "Medium",
-        },
-    ]);
+    useEffect(() => {
+        fetchDashboardData();
+    }, []);
 
-    const [upcomingEvents] = useState([
-        { time: "10:00 AM", title: "Team Sync", type: "Internal Meeting" },
-        { time: "01:30 PM", title: "Client Pitch", type: "Meeting" },
-        { time: "03:00 PM", title: "Project Review", type: "Review" },
-        { time: "04:30 PM", title: "Daily Wrap-up", type: "Sync" },
-    ]);
+    const fetchDashboardData = async () => {
+        setLoading(true);
+        try {
+            // Fetch all data in parallel
+            const [employeesRes, clientsRes, tasksRes, eventsRes] = await Promise.all([
+                axiosInstance.get(requests.EmployeeList),
+                axiosInstance.get(requests.ClientList),
+                axiosInstance.get(requests.TaskList),
+                axiosInstance.get(requests.EventList),
+            ]);
+
+            // Helper function to unwrap API responses
+            const unwrapResponse = (data: any): any[] => {
+                if (Array.isArray(data)) {
+                    return data;
+                } else if (typeof data === 'object' && data !== null) {
+                    // Check common wrapper patterns
+                    if (Array.isArray(data.results)) return data.results;
+                    if (Array.isArray(data.data)) return data.data;
+                    // Find any array property
+                    const arrayValue = Object.values(data).find(val => Array.isArray(val));
+                    if (arrayValue) return arrayValue as any[];
+                }
+                return [];
+            };
+
+            // Unwrap all responses
+            const employees = unwrapResponse(employeesRes.data);
+            const clients = unwrapResponse(clientsRes.data);
+            const tasks = unwrapResponse(tasksRes.data);
+            const rawEvents = unwrapResponse(eventsRes.data);
+
+            // Normalize event data (API uses 'name' and 'event_date')
+            const normalizedEvents = rawEvents.map((evt: any) => ({
+                id: evt.id,
+                title: evt.name || evt.title || 'Untitled Event',
+                event_type: evt.event_type_display || evt.event_type || 'Event',
+                start_date: evt.event_date || evt.start_date || evt.date,
+                start_time: evt.start_time || '00:00'
+            }));
+
+            // Count active employees
+            const activeEmployees = employees.filter(
+                (emp: any) => emp.current_status !== 'inactive' && emp.current_status !== 'terminated'
+            ).length;
+
+            setStats({
+                totalEmployees: activeEmployees,
+                activeClients: clients.filter((c: any) => c.status === 'active').length,
+                pendingTasks: tasks.filter((t: any) => ['pending', 'in_progress', 'scheduled'].includes(t.status)).length,
+                todaysEvents: normalizedEvents.filter(e => isToday(new Date(e.start_date))).length,
+            });
+
+            // Recent tasks
+            setRecentTasks([...tasks]
+                .sort((a: any, b: any) => new Date(b.created_at || b.due_date).getTime() - new Date(a.created_at || a.due_date).getTime())
+                .slice(0, 5)
+            );
+
+            // Today's events
+            setUpcomingEvents(normalizedEvents
+                .filter(e => isToday(new Date(e.start_date)))
+                .sort((a, b) => (a.start_time || '00:00').localeCompare(b.start_time || '00:00'))
+                .slice(0, 4)
+            );
+
+            // Upcoming future events
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            setAllUpcomingEvents(normalizedEvents
+                .filter(e => {
+                    const eDate = new Date(e.start_date);
+                    eDate.setHours(0, 0, 0, 0);
+                    return eDate.getTime() > today.getTime();
+                })
+                .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
+                .slice(0, 5)
+            );
+        } catch (error) {
+            console.error('Error fetching dashboard data:', error);
+            toast.error('Failed to load dashboard data');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const getPriorityColor = (priority: string) => {
-        switch (priority.toLowerCase()) {
+        switch (priority?.toLowerCase()) {
             case 'high': return 'bg-danger text-danger-foreground';
             case 'medium': return 'bg-warning text-warning-foreground';
             case 'low': return 'bg-success text-success-foreground';
@@ -75,7 +153,7 @@ const AdminDashboard = () => {
     };
 
     const getStatusColor = (status: string) => {
-        switch (status.toLowerCase()) {
+        switch (status?.toLowerCase()) {
             case 'completed': return 'bg-success text-success-foreground';
             case 'in progress': return 'bg-primary text-primary-foreground';
             case 'pending': return 'bg-warning text-warning-foreground';
@@ -83,6 +161,47 @@ const AdminDashboard = () => {
             default: return 'bg-muted text-muted-foreground';
         }
     };
+
+    const formatTime = (timeStr: string) => {
+        if (!timeStr) return 'N/A';
+        try {
+            const [hours, minutes] = timeStr.split(':');
+            const hour = parseInt(hours);
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            const displayHour = hour % 12 || 12;
+            return `${displayHour}:${minutes} ${ampm}`;
+        } catch {
+            return timeStr;
+        }
+    };
+
+    const statsCards = [
+        { title: 'Total Employees', value: stats.totalEmployees.toString(), icon: Users, color: 'text-primary' },
+        { title: 'Active Clients', value: stats.activeClients.toString(), icon: UserCheck, color: 'text-success' },
+        { title: 'Pending Tasks', value: stats.pendingTasks.toString(), icon: CheckSquare, color: 'text-warning' },
+        { title: 'Today\'s Events', value: stats.todaysEvents.toString(), icon: Calendar, color: 'text-danger' },
+    ];
+
+    if (loading) {
+        return (
+            <div className="space-y-10 animate-in fade-in duration-500">
+                <div className="flex justify-between items-center bg-white/40 backdrop-blur-xl p-10 rounded-[3rem] border border-white shadow-3xl">
+                    <div className="space-y-1">
+                        <h1 className="text-3xl font-black tracking-tight text-gray-900 uppercase tracking-widest text-xs opacity-50 mb-2">Loading...</h1>
+                        <h2 className="text-4xl font-black tracking-tighter text-gray-900 leading-none">Admin Command</h2>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                    {[1, 2, 3, 4].map((i) => (
+                        <Card key={i} className="animate-pulse">
+                            <CardHeader className="h-20 bg-muted/50"></CardHeader>
+                            <CardContent className="h-16 bg-muted/30"></CardContent>
+                        </Card>
+                    ))}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-10 animate-in fade-in duration-500">
@@ -96,7 +215,7 @@ const AdminDashboard = () => {
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                {stats.map((stat) => (
+                {statsCards.map((stat) => (
                     <Card key={stat.title}>
                         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -107,7 +226,7 @@ const AdminDashboard = () => {
                         <CardContent>
                             <div className="text-2xl font-bold">{stat.value}</div>
                             <p className="text-xs text-muted-foreground">
-                                <span className="text-success">{stat.change}</span> from last month
+                                Real-time data
                             </p>
                         </CardContent>
                     </Card>
@@ -127,128 +246,137 @@ const AdminDashboard = () => {
                         </CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="space-y-4">
-                            {recentTasks.map((task) => (
+                        {recentTasks.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-8">No tasks found</p>
+                        ) : (
+                            <div className="space-y-4">
+                                {recentTasks.map((task) => (
+                                    <div
+                                        key={task.id}
+                                        className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors"
+                                    >
+                                        <div className="flex-1">
+                                            <h4 className="font-medium text-foreground">{task.title}</h4>
+                                            <p className="text-sm text-muted-foreground mt-1">
+                                                Assigned to {task.assignee_details?.full_name || 'Unassigned'}
+                                            </p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Badge
+                                                variant="secondary"
+                                                className={getPriorityColor(task.priority)}
+                                            >
+                                                {task.priority}
+                                            </Badge>
+                                            <Badge
+                                                variant="outline"
+                                                className={getStatusColor(task.status)}
+                                            >
+                                                {task.status}
+                                            </Badge>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                {/* Schedule & Upcoming Column */}
+                <div className="space-y-6">
+                    {/* Today's Schedule */}
+                    <Card>
+                        <CardHeader className="flex flex-row items-center justify-between pb-2">
+                            <div>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Clock className="h-5 w-5" />
+                                    Today's Schedule
+                                </CardTitle>
+                                <CardDescription>
+                                    Today's events and meetings
+                                </CardDescription>
+                            </div>
+                        </CardHeader>
+                        <CardContent>
+                            {upcomingEvents.length === 0 ? (
+                                <p className="text-sm text-muted-foreground text-center py-8">No events today</p>
+                            ) : (
+                                <div className="space-y-3 mb-4">
+                                    {upcomingEvents.map((event) => (
+                                        <div key={event.id} className="flex items-center gap-3">
+                                            <div className="text-sm font-medium text-muted-foreground w-20">
+                                                {formatTime(event.start_time || '00:00')}
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="text-sm font-medium text-foreground">{event.title}</p>
+                                                <p className="text-xs text-muted-foreground">{event.event_type}</p>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                            <Button variant="ghost" size="sm" asChild className="w-full mt-4">
+                                <Link to="/calendar" className="flex items-center justify-center gap-1">
+                                    View More
+                                    <ArrowRight className="h-4 w-4" />
+                                </Link>
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+
+            {/* Upcoming Events Section (Full Width) */}
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                        <CardTitle className="flex items-center gap-2">
+                            <Calendar className="h-5 w-5" />
+                            Upcoming Events
+                        </CardTitle>
+                        <CardDescription>Events for the coming days</CardDescription>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    {allUpcomingEvents.length === 0 ? (
+                        <p className="text-sm text-muted-foreground text-center py-8">No upcoming events</p>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                            {allUpcomingEvents.map((event) => (
                                 <div
-                                    key={task.id}
-                                    className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-muted/50 transition-colors"
+                                    key={event.id}
+                                    className="p-4 border border-border rounded-xl bg-white/50 backdrop-blur-sm hover:bg-white/80 transition-all hover:shadow-md border-l-4 border-l-primary"
                                 >
-                                    <div className="flex-1">
-                                        <h4 className="font-medium text-foreground">{task.title}</h4>
-                                        <p className="text-sm text-muted-foreground mt-1">
-                                            Assigned to {task.assignee_details?.full_name || 'Unassigned'}
-                                        </p>
+                                    <div className="flex justify-between items-start mb-2">
+                                        <Badge variant="outline" className="text-[10px] uppercase tracking-wider">
+                                            {event.event_type}
+                                        </Badge>
+                                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                            <Calendar className="h-3 w-3" />
+                                            {format(new Date(event.start_date), 'MMM dd, yyyy')}
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <Badge
-                                            variant="secondary"
-                                            className={getPriorityColor(task.priority)}
-                                        >
-                                            {task.priority}
-                                        </Badge>
-                                        <Badge
-                                            variant="outline"
-                                            className={getStatusColor(task.status)}
-                                        >
-                                            {task.status}
-                                        </Badge>
+                                    <h4 className="font-bold text-gray-900 group-hover:text-primary transition-colors">
+                                        {event.title}
+                                    </h4>
+                                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                                        <Clock className="h-3 w-3" />
+                                        {formatTime(event.start_time || '00:00')}
                                     </div>
                                 </div>
                             ))}
                         </div>
-                    </CardContent>
-                </Card>
+                    )}
+                    <Button variant="ghost" size="sm" asChild className="w-full mt-4">
+                        <Link to="/calendar" className="flex items-center justify-center gap-1">
+                            View More
+                            <ArrowRight className="h-4 w-4" />
+                        </Link>
+                    </Button>
+                </CardContent>
+            </Card>
 
-                {/* Today's Schedule */}
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Clock className="h-5 w-5" />
-                            Today's Schedule
-                        </CardTitle>
-                        <CardDescription>
-                            Upcoming events and meetings
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-3">
-                            {upcomingEvents.map((event, index) => (
-                                <div key={index} className="flex items-center gap-3">
-                                    <div className="text-sm font-medium text-muted-foreground w-12">
-                                        {event.time}
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="text-sm font-medium text-foreground">{event.title}</p>
-                                        <p className="text-xs text-muted-foreground">{event.type}</p>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
 
-            {/* Progress Overview */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <TrendingUp className="h-5 w-5" />
-                            Project Progress
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div>
-                            <div className="flex justify-between text-sm mb-2">
-                                <span>Website Redesign</span>
-                                <span>75%</span>
-                            </div>
-                            <Progress value={75} className="h-2" />
-                        </div>
-                        <div>
-                            <div className="flex justify-between text-sm mb-2">
-                                <span>Mobile App Development</span>
-                                <span>45%</span>
-                            </div>
-                            <Progress value={45} className="h-2" />
-                        </div>
-                        <div>
-                            <div className="flex justify-between text-sm mb-2">
-                                <span>Database Migration</span>
-                                <span>90%</span>
-                            </div>
-                            <Progress value={90} className="h-2" />
-                        </div>
-                    </CardContent>
-                </Card>
-
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <AlertCircle className="h-5 w-5" />
-                            System Alerts
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="space-y-3">
-                            <div className="flex items-start gap-3 p-3 bg-warning/10 border border-warning/20 rounded-lg">
-                                <AlertCircle className="h-4 w-4 text-warning mt-0.5" />
-                                <div>
-                                    <p className="text-sm font-medium">Server maintenance scheduled</p>
-                                    <p className="text-xs text-muted-foreground">Tomorrow at 2:00 AM</p>
-                                </div>
-                            </div>
-                            <div className="flex items-start gap-3 p-3 bg-success/10 border border-success/20 rounded-lg">
-                                <CheckSquare className="h-4 w-4 text-success mt-0.5" />
-                                <div>
-                                    <p className="text-sm font-medium">Backup completed successfully</p>
-                                    <p className="text-xs text-muted-foreground">2 hours ago</p>
-                                </div>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
         </div>
     );
 };

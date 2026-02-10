@@ -46,6 +46,8 @@ export const requests = {
     EventsCreatedByMe: 'event/events/created-by-me/',
     EmployeeEvents: (employeeId: number) => `event/events/employee/${employeeId}/`,
     CalendarEvents: 'event/events/calendar/',
+    AnnouncementList: 'auth/announcements/',
+    AnnouncementCreate: 'auth/announcements/',
 
     // Leave Management API
     LeaveList: 'auth/leaves/',
