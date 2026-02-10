@@ -113,6 +113,10 @@ const Reports = () => {
           const response = await axiosInstance.get(requests.MonthlyEmployeeReport, { params });
           const data = response.data.details || [];
           const leaves = response.data.leaves?.details || [];
+          console.log('=== REPORTS PAGE - EMPLOYEE DATA DEBUG ===');
+          console.log('Employee Data from API:', data);
+          console.log('First Employee:', data[0]);
+          console.log('First Employee Base Salary:', data[0]?.base_salary);
           console.log('Employee data fetched:', data.length);
           setEmployeeData(data);
           setLeavesData(leaves);

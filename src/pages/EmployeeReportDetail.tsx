@@ -1,51 +1,112 @@
-
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, CalendarCheck, Banknote, Award, Briefcase, FileText, Clock } from 'lucide-react';
+import { ArrowLeft, User, CalendarCheck, Banknote, Award, Briefcase, FileText, Clock, Loader2 } from 'lucide-react';
 import { exportDetailedReportToPDF } from '@/lib/pdfExport';
-
-// Mock Data
-const employeeDetails = {
-  1: { name: 'Alice Wonderland', role: 'Frontend Dev', department: 'Engineering', month: 'January 2026' },
-  2: { name: 'Charlie Brown', role: 'Project Manager', department: 'Management', month: 'January 2026' },
-};
-
-const attendanceData = {
-  present: 22,
-  leaves: 2,
-  totalDays: 24, // Assuming 6-day work week or similar
-};
-
-const financialData = {
-  salary: 50000,
-  incentives: [
-    { id: 1, description: 'Project Completion Bonus', amount: 5000, date: '2026-01-28' },
-    { id: 2, description: 'Performance Bonus', amount: 2000, date: '2026-01-15' },
-  ],
-};
-
-const taskLog = [
-  { id: 1, task: 'Implement Login Flow', status: 'Completed', completionDate: '2026-01-10', priority: 'High' },
-  { id: 2, task: 'Design Dashboard UI', status: 'Completed', completionDate: '2026-01-15', priority: 'Medium' },
-  { id: 3, task: 'Fix Navigation Bug', status: 'Pending', completionDate: '-', priority: 'High' },
-  { id: 4, task: 'API Integration', status: 'In Progress', completionDate: '-', priority: 'Medium' },
-];
+import axiosInstance from '@/axios/axios';
+import { requests } from '@/lib/urls';
+import { toast } from 'sonner';
 
 const EmployeeReportDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const selectedMonth = location.state?.month || 'January 2026';
 
-  // Safe cast for demo purposes
-  const employeeId = Number(id) as keyof typeof employeeDetails;
-  const employee = { ...employeeDetails[employeeId] || employeeDetails[1], month: selectedMonth };
+  const [loading, setLoading] = useState(true);
+  const [employeeData, setEmployeeData] = useState<any>(null);
+  const [leavesData, setLeavesData] = useState<any[]>([]);
 
-  const totalIncentives = financialData.incentives.reduce((acc, curr) => acc + curr.amount, 0);
+  // Get month and year from location state or use current
+  const now = new Date();
+  const selectedMonth = location.state?.month || now.getMonth() + 1;
+  const selectedYear = location.state?.year || now.getFullYear();
+
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  useEffect(() => {
+    fetchEmployeeReport();
+  }, [id, selectedMonth, selectedYear]);
+
+  const fetchEmployeeReport = async () => {
+    setLoading(true);
+    try {
+      const params = { month: selectedMonth, year: selectedYear };
+      const response = await axiosInstance.get(requests.MonthlyEmployeeReport, { params });
+      const data = response.data.details || [];
+      const leaves = response.data.leaves?.details || [];
+
+      console.log('=== EMPLOYEE REPORT DEBUG ===');
+      console.log('Full API Response:', response.data);
+      console.log('Employee Details Array:', data);
+      console.log('Looking for employee ID:', id);
+
+      // Find the specific employee by ID
+      const employee = data.find((emp: any) => emp.id === Number(id));
+
+      console.log('Found Employee:', employee);
+      console.log('Base Salary Value:', employee?.base_salary);
+      console.log('Employee Data Keys:', employee ? Object.keys(employee) : 'No employee found');
+
+      if (employee) {
+        setEmployeeData(employee);
+        setLeavesData(leaves.filter((leave: any) =>
+          leave.employee_id === Number(id) || leave.employee_name === employee.employee_name
+        ));
+      } else {
+        toast.error('Employee report not found for this period');
+        setEmployeeData(null);
+      }
+    } catch (error) {
+      console.error('Failed to fetch employee report:', error);
+      toast.error('Failed to load employee report');
+      setEmployeeData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="container mx-auto p-4 flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading employee report...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!employeeData) {
+    return (
+      <div className="container mx-auto p-4 space-y-6">
+        <Button variant="ghost" size="icon" onClick={() => navigate('/reports')}>
+          <ArrowLeft className="h-5 w-5" />
+        </Button>
+        <Card>
+          <CardContent className="text-center py-12">
+            <p className="text-muted-foreground">No report data found for this employee in {months[selectedMonth - 1]} {selectedYear}</p>
+            <Button onClick={() => navigate('/reports')} className="mt-4">
+              Back to Reports
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const totalIncentives = employeeData.incentives || 0;
+  const attendanceData = {
+    present: employeeData.attendance_days || 0,
+    leaves: employeeData.leaves_count || 0,
+    totalDays: (employeeData.attendance_days || 0) + (employeeData.leaves_count || 0),
+  };
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -54,37 +115,59 @@ const EmployeeReportDetail = () => {
           <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1">
-          <h1 className="text-3xl font-bold">{employee.name} - Monthly Report</h1>
+          <h1 className="text-3xl font-bold">{employeeData.employee_name} - Monthly Report</h1>
           <p className="text-muted-foreground flex items-center gap-2">
-            <User className="h-4 w-4" /> {employee.role} | {employee.month}
+            <User className="h-4 w-4" /> {employeeData.designation || employeeData.role || 'Employee'} | {months[selectedMonth - 1]} {selectedYear}
           </p>
         </div>
         <Button
-          onClick={() => exportDetailedReportToPDF(
-            [
+          onClick={() => {
+            const taskData = employeeData.tasks_log || [];
+            const leaveDetails = leavesData.map(leave => ({
+              type: leave.leave_type || 'Leave',
+              duration: `${leave.total_days || 0} Days`,
+              status: leave.status || 'N/A',
+              reason: leave.reason || 'N/A'
+            }));
+
+            exportDetailedReportToPDF(
+              [
+                {
+                  title: 'Monthly Task Performance',
+                  data: taskData.length > 0 ? taskData : [{ task: 'No tasks recorded', status: 'N/A', completionDate: 'N/A', priority: 'N/A' }],
+                  columns: ['task', 'priority', 'status', 'completionDate']
+                },
+                {
+                  title: 'Financial Breakdown',
+                  data: [{
+                    description: 'Base Salary',
+                    amount: employeeData.base_salary || 0
+                  }, {
+                    description: 'Incentives',
+                    amount: employeeData.incentives || 0
+                  }, {
+                    description: 'Deductions',
+                    amount: -(employeeData.deductions || 0)
+                  }, {
+                    description: 'Net Paid',
+                    amount: employeeData.net_paid || 0
+                  }],
+                  columns: ['description', 'amount']
+                },
+                {
+                  title: 'Leave Details',
+                  data: leaveDetails.length > 0 ? leaveDetails : [{ type: 'No leaves', duration: '0 Days', status: 'N/A', reason: 'N/A' }],
+                  columns: ['type', 'duration', 'status', 'reason']
+                }
+              ],
               {
-                title: 'Monthly Task Performance',
-                data: taskLog,
-                columns: ['task', 'priority', 'status', 'completionDate']
-              },
-              {
-                title: 'Incentives Breakdown',
-                data: financialData.incentives,
-                columns: ['description', 'date', 'amount']
-              },
-              {
-                title: 'Leave Details',
-                data: [{ type: 'Casual Leave', duration: '2 Days', status: 'Approved', reason: 'Personal Work' }],
-                columns: ['type', 'duration', 'status', 'reason']
+                filename: `Report_${employeeData.employee_name}_${months[selectedMonth - 1]}_${selectedYear}`,
+                mainTitle: `${employeeData.employee_name} - Monthly Report`,
+                subtitle: `${months[selectedMonth - 1]} ${selectedYear}`,
+                orientation: 'portrait'
               }
-            ],
-            {
-              filename: `Report_${employee.name}_${employee.month}`,
-              mainTitle: `${employee.name} - Monthly Report`,
-              subtitle: employee.month,
-              orientation: 'portrait'
-            }
-          )}
+            );
+          }}
           className="gap-2"
           variant="default"
         >
@@ -107,12 +190,12 @@ const EmployeeReportDetail = () => {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Salary Paid</CardTitle>
+            <CardTitle className="text-sm font-medium">Base Salary</CardTitle>
             <Banknote className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{financialData.salary.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">Base Salary</p>
+            <div className="text-2xl font-bold">₹{(employeeData.base_salary || 0).toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">Monthly Base Pay</p>
           </CardContent>
         </Card>
         <Card>
@@ -151,37 +234,44 @@ const EmployeeReportDetail = () => {
               <CardDescription>Detailed log of tasks assigned and completed.</CardDescription>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Task Name</TableHead>
-                    <TableHead>Priority</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Completion Date</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {taskLog.map((task) => (
-                    <TableRow key={task.id}>
-                      <TableCell className="font-medium">{task.task}</TableCell>
-                      <TableCell>
-                        <Badge variant={task.priority === 'High' ? 'destructive' : 'secondary'}>
-                          {task.priority}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <span className={`px-2 py-1 rounded-full text-xs font-semibold 
-                          ${task.status === 'Completed' ? 'bg-green-100 text-green-800' :
-                            task.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
-                              'bg-yellow-100 text-yellow-800'}`}>
-                          {task.status}
-                        </span>
-                      </TableCell>
-                      <TableCell>{task.completionDate}</TableCell>
+              {employeeData.tasks_log && employeeData.tasks_log.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Task Name</TableHead>
+                      <TableHead>Priority</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Completion Date</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {employeeData.tasks_log.map((task: any, index: number) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">{task.task || task.title || 'N/A'}</TableCell>
+                        <TableCell>
+                          <Badge variant={task.priority === 'High' ? 'destructive' : 'secondary'}>
+                            {task.priority || 'Normal'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 rounded-full text-xs font-semibold 
+                            ${task.status === 'Completed' || task.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              task.status === 'In Progress' || task.status === 'in_progress' ? 'bg-blue-100 text-blue-800' :
+                                'bg-yellow-100 text-yellow-800'}`}>
+                            {task.status || 'Pending'}
+                          </span>
+                        </TableCell>
+                        <TableCell>{task.completionDate || task.completion_date || task.completed_at || '-'}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No tasks recorded for this period</p>
+                  <p className="text-sm mt-2">Tasks completed: {employeeData.tasks_completed || 0} | Pending: {employeeData.tasks_pending || 0}</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -189,29 +279,33 @@ const EmployeeReportDetail = () => {
         <TabsContent value="financials" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Incentives Breakdown</CardTitle>
-              <CardDescription>Details of additional earnings for the month.</CardDescription>
+              <CardTitle>Salary Breakdown</CardTitle>
+              <CardDescription>Details of salary components for the month.</CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Description</TableHead>
-                    <TableHead>Date</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {financialData.incentives.map((incentive) => (
-                    <TableRow key={incentive.id}>
-                      <TableCell className="font-medium">{incentive.description}</TableCell>
-                      <TableCell>{incentive.date}</TableCell>
-                      <TableCell className="text-right">₹{incentive.amount.toLocaleString()}</TableCell>
-                    </TableRow>
-                  ))}
                   <TableRow>
-                    <TableCell colSpan={2} className="font-bold">Total Incentives</TableCell>
-                    <TableCell className="text-right font-bold">₹{totalIncentives.toLocaleString()}</TableCell>
+                    <TableCell className="font-medium">Base Salary</TableCell>
+                    <TableCell className="text-right">₹{(employeeData.base_salary || 0).toLocaleString()}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Incentives / Bonuses</TableCell>
+                    <TableCell className="text-right text-green-600">+₹{(employeeData.incentives || 0).toLocaleString()}</TableCell>
+                  </TableRow>
+                  <TableRow>
+                    <TableCell className="font-medium">Deductions</TableCell>
+                    <TableCell className="text-right text-red-600">-₹{(employeeData.deductions || 0).toLocaleString()}</TableCell>
+                  </TableRow>
+                  <TableRow className="border-t-2">
+                    <TableCell className="font-bold">Net Paid</TableCell>
+                    <TableCell className="text-right font-bold">₹{(employeeData.net_paid || 0).toLocaleString()}</TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -236,15 +330,29 @@ const EmployeeReportDetail = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  <TableRow>
-                    <TableCell className="font-medium">Casual Leave</TableCell>
-                    <TableCell>2 Days</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="bg-green-100 text-green-800">Approved</Badge>
-                    </TableCell>
-                    <TableCell>Personal Work</TableCell>
-                  </TableRow>
-                  {attendanceData.leaves === 0 && (
+                  {leavesData.length > 0 ? (
+                    leavesData.map((leave: any, index: number) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">{leave.leave_type || 'Leave'}</TableCell>
+                        <TableCell>{leave.total_days || 0} Days</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="secondary"
+                            className={
+                              leave.status?.toLowerCase() === 'approved' || leave.status_code === 'approved'
+                                ? 'bg-green-100 text-green-800'
+                                : leave.status?.toLowerCase() === 'rejected' || leave.status_code === 'rejected'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-yellow-100 text-yellow-800'
+                            }
+                          >
+                            {leave.status || leave.status_code || 'Pending'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{leave.reason || 'N/A'}</TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center py-4 text-muted-foreground">
                         No leaves taken this month.
