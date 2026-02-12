@@ -26,7 +26,7 @@ import PrivateRoute from "./lib/PrivateRoute";
 import Dolla from "./pages/Dolla";
 import LeaveManagement from "./pages/LeaveManagement";
 import LeaveApplications from "./pages/LeaveApplications";
-import Verification from "./pages/Verification";
+import MonthlyClientVerification from "./pages/Verification";
 import ClientDetails from "./pages/ClientDetails";
 import Reports from "./pages/Reports";
 import ClientReportDetail from "./pages/ClientReportDetail";
@@ -137,7 +137,7 @@ const App = () => (
               path="verification"
               element={
                 <PrivateRoute>
-                  <Verification />
+                  <MonthlyClientVerification />
                 </PrivateRoute>
               }
             />

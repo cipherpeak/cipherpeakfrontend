@@ -65,13 +65,7 @@ export const requests = {
     ProcessSalaryPayment: (id: number) => `auth/process-salary-payment/${id}/`,
     PaymentDetail: (id: number) => `auth/payments/${id}/`,
 
-    verificationDashboard: '/api/dashboard/',
-    addPostedContent: '/api/add-posted-content/',
-    removePostedContent: '/api/remove-posted-content/',
-    deletePostedContent: '/api/delete-posted-content',
-    verifyClient: '/api/verify-client/',
-    updateQuota: '/api/update-quota/',
-    clientContent: '/api/client-content',
+
     // Finance API
     IncomeListCreate: 'api/finance/incomes/',
     IncomeDetail: (id: number) => `api/finance/incomes/${id}/`,
@@ -99,4 +93,10 @@ export const requests = {
     CameraDepartmentList: 'auth/camera-department/',
     CameraDepartmentCreate: 'auth/camera-department/create/',
     CameraDepartmentDetail: (id: number) => `auth/camera-department/${id}/`,
+
+
+    //verifications
+    fetchMonthelyClientVerification: 'api/clientverification-list/',
+    closeMonthlyVerification: 'api/close-month/',
+    fetchVerifiedClients: 'api/verified-list/'
 };

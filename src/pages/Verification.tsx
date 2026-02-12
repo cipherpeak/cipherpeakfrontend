@@ -1,907 +1,428 @@
+
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
-    XCircle,
-    Clock,
+    Layout,
+    Video,
+    Save,
+    Archive,
+    FileText,
+    BadgeCheck,
     Loader2,
-    CheckCircle,
-    Calendar as CalendarIcon,
-    ChevronUp,
-    ChevronDown,
-    Eye,
-    ExternalLink,
-    Trash2,
-    Edit,
-    AlertCircle
+    History,
+    CalendarDays
 } from 'lucide-react';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 import axiosInstance from '@/axios/axios';
 import { requests } from '@/lib/urls';
-import { toast } from 'sonner';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
-interface Verification {
-    client_id: number;
-    client_name: string;
-    poster_quota: number;
-    video_quota: number;
-    posted_posters: number;
-    posted_videos: number;
-    is_verified: boolean;
-    industry: string | null;
-    has_overdue: boolean;
-}
-
-interface PostedContent {
+interface ClientVerification {
     id: number;
-    client: number;
     client_name: string;
-    content_type: 'poster' | 'video';
-    content_type_display: string;
-    title: string;
-    description: string;
-    posted_date: string;
-    platform: string | null;
-    platform_display: string | null;
-    content_url: string | null;
-    status: 'draft' | 'posted' | 'approved' | 'rejected';
-    status_display: string;
-    verified_by: number | null;
-    verified_by_name: string | null;
-    verified_date: string | null;
-    verification_notes: string | null;
-    created_by: number;
-    created_by_name: string;
-    created_at: string;
-    updated_at: string;
+    client_monthly_poster: string | number;
+    client_monthly_videos: string | number;
+    posters_completed: number;
+    videos_completed: number;
+    posters_posted: number;
+    videos_posted: number;
+    is_completed: boolean;
+    is_verified: boolean;
 }
 
-interface ClientDetails {
-    client_id: number;
-    client_name: string;
-    month: number;
-    year: number;
-    statistics: {
-        posters_posted: number;
-        videos_posted: number;
-        posters_quota: number;
-        videos_quota: number;
-        is_verified: boolean;
-    };
-    posted_content: PostedContent[];
-    total_count: number;
-}
-
-const Verification = () => {
-    const [currentMonthVerifications, setCurrentMonthVerifications] = useState<Verification[]>([]);
+const MonthlyClientVerification = () => {
+    const [clients, setClients] = useState<ClientVerification[]>([]);
+    const [verifiedClients, setVerifiedClients] = useState<ClientVerification[]>([]);
     const [loading, setLoading] = useState(true);
-    const [selectedDate, setSelectedDate] = useState({
-        month: new Date().getMonth() + 1,
-        year: new Date().getFullYear()
-    });
+    const [historyLoading, setHistoryLoading] = useState(false);
+    const [savingIds, setSavingIds] = useState<number[]>([]);
+    const [closingIds, setClosingIds] = useState<number[]>([]);
+    const [error, setError] = useState<string | null>(null);
 
-    // Client details modal
-    const [selectedClient, setSelectedClient] = useState<ClientDetails | null>(null);
-    const [detailsLoading, setDetailsLoading] = useState(false);
-
-    // Add content modal
-    const [addContentOpen, setAddContentOpen] = useState(false);
-    const [selectedForAdd, setSelectedForAdd] = useState<{ clientId: number, contentType: 'poster' | 'video' } | null>(null);
-
-    // Delete confirmation
-    const [contentToDelete, setContentToDelete] = useState<PostedContent | null>(null);
-
-    // Stats
-    const [stats, setStats] = useState({
-        totalClients: 0,
-        verifiedClients: 0,
-        incompleteClients: 0,
-        totalPostedPosters: 0,
-        totalPostedVideos: 0,
-    });
-
-    useEffect(() => {
-        fetchVerifications();
-    }, [selectedDate]);
+    const [selectedMonth, setSelectedMonth] = useState<string>((new Date().getMonth() + 1).toString());
+    const [selectedYear, setSelectedYear] = useState<string>(new Date().getFullYear().toString());
+    const [activeTab, setActiveTab] = useState<string>("active");
 
     const fetchVerifications = async () => {
+        setLoading(true);
+        setError(null);
         try {
-            setLoading(true);
-            const response = await axiosInstance.get(requests.verificationDashboard, {
-                params: {
-                    month: selectedDate.month,
-                    year: selectedDate.year
-                }
-            });
-
+            const response = await axiosInstance.get(requests.fetchMonthelyClientVerification);
+            // Handling both array and object responses (with 'results' or similar)
             const data = response.data;
-            setCurrentMonthVerifications(data);
 
-            // Calculate stats
-            const verifiedClients = data.filter((v: Verification) => v.is_verified).length;
-            const totalPostedPosters = data.reduce((sum: number, v: Verification) => sum + v.posted_posters, 0);
-            const totalPostedVideos = data.reduce((sum: number, v: Verification) => sum + v.posted_videos, 0);
-
-            setStats({
-                totalClients: data.length,
-                verifiedClients,
-                incompleteClients: data.length - verifiedClients,
-                totalPostedPosters,
-                totalPostedVideos,
-            });
-
-        } catch (error) {
-            console.error('Error fetching verifications:', error);
-            toast.error('Failed to load verification dashboard');
+            if (Array.isArray(data)) {
+                setClients(data);
+            } else if (data && typeof data === 'object') {
+                setClients(data.results || data.data || []);
+            }
+        } catch (err: any) {
+            console.error('Error fetching verifications:', err);
+            setError('Failed to load verification data. Please try again later.');
+            toast.error('Failed to load verification data');
         } finally {
             setLoading(false);
         }
     };
 
-    const handleAddPostedContent = async (clientId: number, contentType: 'poster' | 'video') => {
+    const fetchVerifiedVerifications = async () => {
+        setHistoryLoading(true);
         try {
-            await axiosInstance.post(requests.addPostedContent, {
-                client_id: clientId,
-                content_type: contentType,
-                month: selectedDate.month,
-                year: selectedDate.year
-            });
-
-            await fetchVerifications();
-            toast.success(`${contentType === 'poster' ? 'Poster' : 'Video'} added successfully`);
-        } catch (error: any) {
-            console.error('Error adding posted content:', error);
-            toast.error(error.response?.data?.error || `Failed to add ${contentType}`);
-        }
-    };
-
-    const handleRemovePostedContent = async (clientId: number, contentType: 'poster' | 'video') => {
-        try {
-            await axiosInstance.post(requests.removePostedContent, {
-                client_id: clientId,
-                content_type: contentType,
-                month: selectedDate.month,
-                year: selectedDate.year
-            });
-
-            await fetchVerifications();
-            toast.success(`${contentType === 'poster' ? 'Poster' : 'Video'} removed`);
-        } catch (error: any) {
-            console.error('Error removing posted content:', error);
-            toast.error(error.response?.data?.error || `Failed to remove ${contentType}`);
-        }
-    };
-
-    const handleVerifyClient = async (clientId: number, clientName: string) => {
-        try {
-            const response = await axiosInstance.post(requests.verifyClient, {
-                client_id: clientId,
-                month: selectedDate.month,
-                year: selectedDate.year
-            });
-
-            await fetchVerifications();
-            toast.success(`${clientName} verified successfully!`);
-        } catch (error: any) {
-            console.error('Error verifying client:', error);
-            const errorMsg = error.response?.data?.error || 'Failed to verify client';
-            const details = error.response?.data?.details;
-
-            if (details) {
-                toast.error(`${errorMsg}. Need ${details.posters_needed} more posters, ${details.videos_needed} more videos.`);
-            } else {
-                toast.error(errorMsg);
-            }
-        }
-    };
-
-    const fetchClientDetails = async (clientId: number) => {
-        try {
-            setDetailsLoading(true);
-            const response = await axiosInstance.get(`${requests.clientContent}/${clientId}/`, {
+            const response = await axiosInstance.get(requests.fetchVerifiedClients, {
                 params: {
-                    month: selectedDate.month,
-                    year: selectedDate.year
+                    month: selectedMonth,
+                    year: selectedYear
                 }
             });
-            setSelectedClient(response.data);
-        } catch (error) {
-            console.error('Error fetching client details:', error);
-            toast.error('Failed to load client details');
+            const data = response.data;
+            if (Array.isArray(data)) {
+                setVerifiedClients(data);
+            } else if (data && typeof data === 'object') {
+                setVerifiedClients(data.results || data.data || []);
+            }
+        } catch (err: any) {
+            console.error('Error fetching verified verifications:', err);
+            toast.error('Failed to load verified history');
         } finally {
-            setDetailsLoading(false);
+            setHistoryLoading(false);
         }
     };
 
-    const handleDeleteContent = async () => {
-        if (!contentToDelete) return;
-
-        try {
-            await axiosInstance.delete(`${requests.deletePostedContent}/${contentToDelete.id}/`);
-
-            // Refresh both dashboard and details
-            await fetchVerifications();
-            if (selectedClient) {
-                await fetchClientDetails(selectedClient.client_id);
-            }
-
-            toast.success('Content deleted successfully');
-            setContentToDelete(null);
-        } catch (error) {
-            console.error('Error deleting content:', error);
-            toast.error('Failed to delete content');
+    useEffect(() => {
+        if (activeTab === "active") {
+            fetchVerifications();
+        } else {
+            fetchVerifiedVerifications();
         }
+    }, [activeTab, selectedMonth, selectedYear]);
+
+
+    console.log(clients, "this are  verification")
+    const handleInputChange = (id: number, field: keyof ClientVerification, value: string) => {
+        setClients(prev => prev.map(client =>
+            client.id === id ? { ...client, [field]: parseInt(value) || 0 } : client
+        ));
     };
 
-    const handleAddCustomContent = async (formData: any) => {
-        if (!selectedForAdd) return;
-
+    const handleSave = async (client: ClientVerification) => {
+        setSavingIds(prev => [...prev, client.id]);
         try {
-            await axiosInstance.post(requests.addPostedContent, {
-                client_id: selectedForAdd.clientId,
-                content_type: selectedForAdd.contentType,
-                month: selectedDate.month,
-                year: selectedDate.year,
-                ...formData
+            await axiosInstance.post(requests.fetchMonthelyClientVerification, {
+                id: client.id,
+                posters_completed: client.posters_completed,
+                videos_completed: client.videos_completed,
+                posters_posted: client.posters_posted,
+                videos_posted: client.videos_posted
             });
-
-            await fetchVerifications();
-            setAddContentOpen(false);
-            setSelectedForAdd(null);
-            toast.success('Content added successfully');
-        } catch (error: any) {
-            console.error('Error adding custom content:', error);
-            toast.error(error.response?.data?.error || 'Failed to add content');
+            toast.success(`Progress saved for ${client.client_name}`);
+            // Optional: Re-fetch to get updated is_completed status or other server-side calcs
+            // fetchVerifications(); 
+        } catch (err: any) {
+            console.error('Error saving verification:', err);
+            toast.error(`Failed to save progress for ${client.client_name}`);
+        } finally {
+            setSavingIds(prev => prev.filter(id => id !== client.id));
         }
     };
 
-    const TableHeaderRow = () => (
-        <TableRow className="bg-gray-100">
-            <TableHead className="text-black font-semibold border-r border-gray-300">Client Name</TableHead>
-            <TableHead className="text-black font-semibold border-r border-gray-300 text-center">Poster(Total)</TableHead>
-            <TableHead className="text-black font-semibold border-r border-gray-300 text-center">Video(Total)</TableHead>
-            <TableHead className="text-black font-semibold border-r border-gray-300 text-center">Poster (pst)</TableHead>
-            <TableHead className="text-black font-semibold border-r border-gray-300 text-center">Video(pst)</TableHead>
-            <TableHead className="text-black font-semibold text-center">Actions</TableHead>
-        </TableRow>
-    );
-
-    const DataTableRow = ({ verification, index }: { verification: Verification; index: number }) => {
-        const postersRemaining = Math.max(0, verification.poster_quota - verification.posted_posters);
-        const videosRemaining = Math.max(0, verification.video_quota - verification.posted_videos);
-
-        return (
-            <TableRow
-                key={verification.client_id}
-                className={`
-          ${verification.has_overdue ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'}
-          border-b border-gray-200
-        `}
-            >
-                <TableCell className="font-medium border-r border-gray-300 whitespace-nowrap">
-                    <div className="flex items-center gap-2">
-                        {verification.client_name}
-                        {verification.has_overdue && (
-                            <Badge variant="destructive" className="text-xs">Overdue</Badge>
-                        )}
-                    </div>
-                </TableCell>
-
-                {/* Poster Quota - Editable */}
-                <TableCell className="border-r border-gray-300 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                        <span className="font-semibold">{verification.poster_quota}</span>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            onClick={async () => {
-                                const newQuota = parseInt(prompt(`New poster quota for ${verification.client_name}:`, verification.poster_quota.toString()) || '0');
-                                if (newQuota !== verification.poster_quota && newQuota >= 0) {
-                                    try {
-                                        await axiosInstance.post(requests.updateQuota, {
-                                            client_id: verification.client_id,
-                                            content_type: 'posters',
-                                            quota: newQuota
-                                        });
-                                        await fetchVerifications();
-                                        toast.success('Poster quota updated');
-                                    } catch (error) {
-                                        toast.error('Failed to update quota');
-                                    }
-                                }
-                            }}
-                        >
-                            <Edit className="h-3 w-3" />
-                        </Button>
-                    </div>
-                </TableCell>
-
-                {/* Video Quota - Editable */}
-                <TableCell className="border-r border-gray-300 text-center">
-                    <div className="flex items-center justify-center gap-1">
-                        <span className="font-semibold">{verification.video_quota}</span>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            onClick={async () => {
-                                const newQuota = parseInt(prompt(`New video quota for ${verification.client_name}:`, verification.video_quota.toString()) || '0');
-                                if (newQuota !== verification.video_quota && newQuota >= 0) {
-                                    try {
-                                        await axiosInstance.post(requests.updateQuota, {
-                                            client_id: verification.client_id,
-                                            content_type: 'videos',
-                                            quota: newQuota
-                                        });
-                                        await fetchVerifications();
-                                        toast.success('Video quota updated');
-                                    } catch (error) {
-                                        toast.error('Failed to update quota');
-                                    }
-                                }
-                            }}
-                        >
-                            <Edit className="h-3 w-3" />
-                        </Button>
-                    </div>
-                </TableCell>
-
-                {/* Posted Posters - Click to increment/decrement */}
-                <TableCell
-                    className="border-r border-gray-300 text-center"
-                >
-                    <div className="flex flex-col items-center">
-                        <div className="flex items-center gap-2">
-                            <span className={`font-bold text-lg ${postersRemaining === 0 ? 'text-green-600' : 'text-blue-600'}`}>
-                                {verification.posted_posters}
-                            </span>
-
-                            <div className="flex flex-col">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 hover:bg-green-100"
-                                    onClick={() => handleAddPostedContent(verification.client_id, 'poster')}
-                                    disabled={postersRemaining === 0}
-                                    title="Add poster"
-                                >
-                                    <ChevronUp className="h-3 w-3 text-green-600" />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 hover:bg-red-100"
-                                    onClick={() => handleRemovePostedContent(verification.client_id, 'poster')}
-                                    disabled={verification.posted_posters === 0}
-                                    title="Remove poster"
-                                >
-                                    <ChevronDown className="h-3 w-3 text-red-600" />
-                                </Button>
-                            </div>
-                        </div>
-
-                        {postersRemaining > 0 && (
-                            <span className="text-xs text-gray-500 mt-1">{postersRemaining} more needed</span>
-                        )}
-                    </div>
-                </TableCell>
-
-                {/* Posted Videos - Click to increment/decrement */}
-                <TableCell
-                    className="border-r border-gray-300 text-center"
-                >
-                    <div className="flex flex-col items-center">
-                        <div className="flex items-center gap-2">
-                            <span className={`font-bold text-lg ${videosRemaining === 0 ? 'text-green-600' : 'text-blue-600'}`}>
-                                {verification.posted_videos}
-                            </span>
-
-                            <div className="flex flex-col">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 hover:bg-green-100"
-                                    onClick={() => handleAddPostedContent(verification.client_id, 'video')}
-                                    disabled={videosRemaining === 0}
-                                    title="Add video"
-                                >
-                                    <ChevronUp className="h-3 w-3 text-green-600" />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-6 w-6 p-0 hover:bg-red-100"
-                                    onClick={() => handleRemovePostedContent(verification.client_id, 'video')}
-                                    disabled={verification.posted_videos === 0}
-                                    title="Remove video"
-                                >
-                                    <ChevronDown className="h-3 w-3 text-red-600" />
-                                </Button>
-                            </div>
-                        </div>
-
-                        {videosRemaining > 0 && (
-                            <span className="text-xs text-gray-500 mt-1">{videosRemaining} more needed</span>
-                        )}
-                    </div>
-                </TableCell>
-
-                {/* Actions */}
-                <TableCell>
-                    <div className="flex justify-center gap-2">
-                        <Button
-                            size="sm"
-                            className={`${verification.is_verified ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'} text-white font-medium`}
-                            onClick={() => handleVerifyClient(verification.client_id, verification.client_name)}
-                            disabled={!verification.is_verified}
-                        >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            {verification.is_verified ? 'Verify' : 'Incomplete'}
-                        </Button>
-
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => fetchClientDetails(verification.client_id)}
-                            title="View details"
-                        >
-                            <Eye className="h-4 w-4" />
-                        </Button>
-
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                                setSelectedForAdd({
-                                    clientId: verification.client_id,
-                                    contentType: 'poster'
-                                });
-                                setAddContentOpen(true);
-                            }}
-                            title="Add custom content"
-                        >
-                            +
-                        </Button>
-                    </div>
-                </TableCell>
-            </TableRow>
-        );
+    const handleCloseMonth = async (client: ClientVerification) => {
+        setClosingIds(prev => [...prev, client.id]);
+        try {
+            await axiosInstance.post(requests.closeMonthlyVerification, {
+                id: client.id
+            });
+            toast.success(`${client.client_name} - Month closed successfully`);
+            fetchVerifications(); // Refresh list as verified clients are excluded
+        } catch (err: any) {
+            console.error('Error closing month:', err);
+            toast.error(`Failed to close month for ${client.client_name}`);
+        } finally {
+            setClosingIds(prev => prev.filter(id => id !== client.id));
+        }
     };
 
-    const AddContentModal = () => {
-        const [formData, setFormData] = useState({
-            title: '',
-            description: '',
-            platform: '',
-            content_url: '',
-            contentType: selectedForAdd?.contentType || 'poster'
-        });
-
-        const handleSubmit = (e: React.FormEvent) => {
-            e.preventDefault();
-            handleAddCustomContent(formData);
-        };
-
+    if (loading) {
         return (
-            <Dialog open={addContentOpen} onOpenChange={setAddContentOpen}>
-                <DialogContent className="sm:max-w-[500px]">
-                    <DialogHeader>
-                        <DialogTitle>Add Posted Content</DialogTitle>
-                        <DialogDescription>
-                            Add detailed information for the posted content
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    <form onSubmit={handleSubmit}>
-                        <div className="grid gap-4 py-4">
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="contentType" className="text-right">
-                                    Content Type
-                                </Label>
-                                <Select
-                                    value={formData.contentType}
-                                    onValueChange={(value) => setFormData({ ...formData, contentType: value as 'poster' | 'video' })}
-                                >
-                                    <SelectTrigger className="col-span-3">
-                                        <SelectValue placeholder="Select type" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="poster">Poster</SelectItem>
-                                        <SelectItem value="video">Video</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="title" className="text-right">
-                                    Title
-                                </Label>
-                                <Input
-                                    id="title"
-                                    value={formData.title}
-                                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                                    className="col-span-3"
-                                    placeholder="Enter content title"
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="description" className="text-right">
-                                    Description
-                                </Label>
-                                <Textarea
-                                    id="description"
-                                    value={formData.description}
-                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                    className="col-span-3"
-                                    placeholder="Enter content description"
-                                    rows={3}
-                                />
-                            </div>
-
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="platform" className="text-right">
-                                    Platform
-                                </Label>
-                                <Select
-                                    value={formData.platform}
-                                    onValueChange={(value) => setFormData({ ...formData, platform: value })}
-                                >
-                                    <SelectTrigger className="col-span-3">
-                                        <SelectValue placeholder="Select platform" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="instagram">Instagram</SelectItem>
-                                        <SelectItem value="facebook">Facebook</SelectItem>
-                                        <SelectItem value="youtube">YouTube</SelectItem>
-                                        <SelectItem value="linkedin">LinkedIn</SelectItem>
-                                        <SelectItem value="twitter">Twitter</SelectItem>
-                                        <SelectItem value="tiktok">TikTok</SelectItem>
-                                        <SelectItem value="other">Other</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <div className="grid grid-cols-4 items-center gap-4">
-                                <Label htmlFor="content_url" className="text-right">
-                                    Content URL
-                                </Label>
-                                <Input
-                                    id="content_url"
-                                    type="url"
-                                    value={formData.content_url}
-                                    onChange={(e) => setFormData({ ...formData, content_url: e.target.value })}
-                                    className="col-span-3"
-                                    placeholder="https://..."
-                                />
-                            </div>
-                        </div>
-
-                        <DialogFooter>
-                            <Button type="button" variant="outline" onClick={() => setAddContentOpen(false)}>
-                                Cancel
-                            </Button>
-                            <Button type="submit">
-                                Add Content
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </DialogContent>
-            </Dialog>
+            <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50/30">
+                <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+                <p className="text-slate-500 font-medium animate-pulse">Fetching verification data...</p>
+            </div>
         );
-    };
+    }
 
-    const ClientDetailsModal = () => {
-        if (!selectedClient) return null;
-
-        const groupedContent = selectedClient.posted_content.reduce((groups: Record<string, PostedContent[]>, item) => {
-            const type = item.content_type;
-            if (!groups[type]) {
-                groups[type] = [];
-            }
-            groups[type].push(item);
-            return groups;
-        }, {});
-
+    if (error) {
         return (
-            <Dialog open={!!selectedClient} onOpenChange={(open) => !open && setSelectedClient(null)}>
-                <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center justify-between">
-                            <span>Posted Content for {selectedClient.client_name}</span>
-                            <Badge variant={selectedClient.statistics.is_verified ? "default" : "secondary"}>
-                                {selectedClient.statistics.is_verified ? 'Verified' : 'Not Verified'}
-                            </Badge>
-                        </DialogTitle>
-                        <DialogDescription>
-                            {selectedDate.month}/{selectedDate.year} •
-                            Posters: {selectedClient.statistics.posters_posted}/{selectedClient.statistics.posters_quota} •
-                            Videos: {selectedClient.statistics.videos_posted}/{selectedClient.statistics.videos_quota}
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    {detailsLoading ? (
-                        <div className="flex justify-center py-8">
-                            <Loader2 className="h-8 w-8 animate-spin" />
-                        </div>
-                    ) : selectedClient.total_count === 0 ? (
-                        <div className="text-center py-8 text-gray-500">
-                            No posted content found for this month
-                        </div>
-                    ) : (
-                        <div className="space-y-6">
-                            {Object.entries(groupedContent).map(([type, items]) => (
-                                <div key={type} className="space-y-3">
-                                    <h3 className="text-lg font-semibold capitalize">{type}s ({items.length})</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {items.map((item) => (
-                                            <Card key={item.id} className="relative">
-                                                <CardContent className="pt-6">
-                                                    <div className="absolute top-3 right-3 flex gap-1">
-                                                        <Button
-                                                            size="sm"
-                                                            variant="ghost"
-                                                            className="h-8 w-8 p-0"
-                                                            onClick={() => setContentToDelete(item)}
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
-                                                    </div>
-
-                                                    <div className="space-y-3">
-                                                        <div className="flex items-start justify-between">
-                                                            <h4 className="font-semibold">{item.title}</h4>
-                                                            <Badge variant={
-                                                                item.status === 'approved' ? 'default' :
-                                                                    item.status === 'posted' ? 'secondary' :
-                                                                        'outline'
-                                                            }>
-                                                                {item.status_display}
-                                                            </Badge>
-                                                        </div>
-
-                                                        {item.description && (
-                                                            <p className="text-sm text-gray-600">{item.description}</p>
-                                                        )}
-
-                                                        <div className="flex flex-wrap gap-2 text-sm text-gray-500">
-                                                            {item.platform_display && (
-                                                                <span className="bg-gray-100 px-2 py-1 rounded">Platform: {item.platform_display}</span>
-                                                            )}
-                                                            <span>Posted: {new Date(item.posted_date).toLocaleDateString()}</span>
-                                                            <span>Added by: {item.created_by_name}</span>
-                                                        </div>
-
-                                                        {item.content_url && (
-                                                            <a
-                                                                href={item.content_url}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="inline-flex items-center text-sm text-blue-600 hover:underline"
-                                                            >
-                                                                <ExternalLink className="h-3 w-3 mr-1" /> View Content
-                                                            </a>
-                                                        )}
-
-                                                        {item.verified_by_name && (
-                                                            <div className="text-xs text-green-600">
-                                                                Verified by {item.verified_by_name} on {new Date(item.verified_date!).toLocaleDateString()}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                </CardContent>
-                                            </Card>
-                                        ))}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    <DialogFooter>
-                        <Button
-                            onClick={() => {
-                                handleVerifyClient(selectedClient.client_id, selectedClient.client_name);
-                                setSelectedClient(null);
-                            }}
-                            disabled={!selectedClient.statistics.is_verified}
-                        >
-                            Verify All Content
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        );
-    };
-
-    const isCurrentMonth = selectedDate.month === new Date().getMonth() + 1 &&
-        selectedDate.year === new Date().getFullYear();
-
-    return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-bold text-foreground">Verification</h1>
-                    <p className="text-muted-foreground mt-1">
-                        {isCurrentMonth ? "Manage content verification and client deliverables" : `Verification records for ${new Date(selectedDate.year, selectedDate.month - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}`}
-                    </p>
-                </div>
-                <div className="flex items-center gap-3">
-                    <Select
-                        value={selectedDate.month.toString()}
-                        onValueChange={(val) => setSelectedDate(prev => ({ ...prev, month: parseInt(val) }))}
-                    >
-                        <SelectTrigger className="w-32 bg-white">
-                            <CalendarIcon className="h-4 w-4 mr-2 text-muted-foreground" />
-                            <SelectValue placeholder="Month" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {Array.from({ length: 12 }, (_, i) => (
-                                <SelectItem key={i + 1} value={(i + 1).toString()}>
-                                    {new Date(2000, i).toLocaleString('default', { month: 'long' })}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-
-                    <Select
-                        value={selectedDate.year.toString()}
-                        onValueChange={(val) => setSelectedDate(prev => ({ ...prev, year: parseInt(val) }))}
-                    >
-                        <SelectTrigger className="w-32 bg-white">
-                            <SelectValue placeholder="Year" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            {Array.from({ length: 5 }, (_, i) => (
-                                <SelectItem key={i} value={(new Date().getFullYear() - 2 + i).toString()}>
-                                    {new Date().getFullYear() - 2 + i}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-
+            <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50/30 p-6">
+                <div className="bg-white p-8 rounded-[2.5rem] shadow-xl ring-1 ring-slate-200 text-center max-w-md">
+                    <div className="bg-rose-50 w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-6">
+                        <Layout className="h-8 w-8 text-rose-500" />
+                    </div>
+                    <h2 className="text-2xl font-black text-slate-900 mb-2 uppercase italic">Oops!</h2>
+                    <p className="text-slate-500 mb-8 font-medium">{error}</p>
                     <Button
                         onClick={fetchVerifications}
-                        variant="outline"
-                        size="icon"
-                        title="Refresh data"
+                        className="w-full rounded-2xl font-black py-6 bg-slate-900 hover:bg-slate-800"
                     >
-                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clock className="h-4 w-4" />}
+                        Try Again
                     </Button>
                 </div>
             </div>
+        );
+    }
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Total Clients</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold">{stats.totalClients}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Verified Clients</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-green-600">{stats.verifiedClients}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Incomplete</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-amber-600">{stats.incompleteClients}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Total Posters Posted</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-blue-600">{stats.totalPostedPosters}</div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium">Total Videos Posted</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="text-2xl font-bold text-purple-600">{stats.totalPostedVideos}</div>
-                    </CardContent>
-                </Card>
-            </div>
+    const renderClientCard = (client: ClientVerification, isHistory: boolean = false) => {
+        const isVerified = client.is_verified;
 
-            {/* Main Table */}
-            <Card>
-                <CardHeader>
-                    <CardTitle>Verification Dashboard</CardTitle>
-                    <CardDescription>
-                        Click on arrow buttons to add/remove posted content. Click Verify when quotas are met.
+        return (
+            <Card key={client.id} className="group overflow-hidden border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_50px_rgba(30,41,59,0.12)] transition-all duration-500 rounded-[2.5rem] bg-white ring-1 ring-slate-200/50">
+                <CardHeader className="pb-4 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full -mr-10 -mt-10 blur-2xl group-hover:bg-primary/10 transition-colors"></div>
+                    <div className="flex justify-between items-start z-10">
+                        <div className="p-3 bg-slate-50 rounded-2xl group-hover:bg-primary/10 transition-colors duration-500">
+                            <Layout className="h-6 w-6 text-slate-400 group-hover:text-primary" />
+                        </div>
+                        {isVerified && (
+                            <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100 font-bold px-3 shadow-none animate-in zoom-in-50">
+                                VERIFIED
+                            </Badge>
+                        )}
+                    </div>
+                    <CardTitle className="text-2xl font-black text-slate-800 mt-4 tracking-tight leading-none group-hover:translate-x-1 transition-transform">
+                        {client.client_name}
+                    </CardTitle>
+                    <CardDescription className="font-bold text-[10px] uppercase tracking-[0.2em] text-slate-400 mt-1">
+                        {isHistory ? 'Historical Record' : 'Verified Client Record'}
                     </CardDescription>
                 </CardHeader>
-                <CardContent className="p-0">
-                    <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableHeaderRow />
-                            </TableHeader>
-                            <TableBody>
-                                {loading ? (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="text-center py-8">
-                                            <Loader2 className="h-8 w-8 animate-spin mx-auto" />
-                                        </TableCell>
-                                    </TableRow>
-                                ) : currentMonthVerifications.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                                            No clients found for selected month
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    currentMonthVerifications.map((verification, index) => (
-                                        <DataTableRow key={verification.client_id} index={index} verification={verification} />
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
+
+                <CardContent className="pt-4">
+                    <div className="grid grid-cols-2 gap-6">
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2 mb-1">
+                                <div className="p-1.5 bg-blue-50 rounded-lg">
+                                    <FileText className="h-3.5 w-3.5 text-blue-600" />
+                                </div>
+                                <span className="text-[10px] font-black text-slate-700 uppercase italic">Posters</span>
+                            </div>
+                            <div className="space-y-1.5">
+                                <p className="text-[9px] font-bold text-slate-400 pl-1 uppercase tracking-tighter mb-1">Target: <span className="text-slate-600">{client.client_monthly_poster}</span></p>
+                                <Label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">Finished</Label>
+                                <Input
+                                    type="number"
+                                    value={client.posters_completed}
+                                    readOnly={isHistory}
+                                    onChange={(e) => handleInputChange(client.id, 'posters_completed', e.target.value)}
+                                    className={`bg-slate-50/50 border-slate-100 font-black text-blue-700 focus:ring-blue-500/20 rounded-xl h-9 ${isHistory ? 'opacity-70' : ''}`}
+                                />
+                                <Label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">Posted</Label>
+                                <Input
+                                    type="number"
+                                    value={client.posters_posted}
+                                    readOnly={isHistory}
+                                    onChange={(e) => handleInputChange(client.id, 'posters_posted', e.target.value)}
+                                    className={`bg-slate-50/50 border-slate-100 font-black text-blue-800 focus:ring-blue-500/20 rounded-xl h-9 ${isHistory ? 'opacity-70' : ''}`}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-2 mb-1">
+                                <div className="p-1.5 bg-rose-50 rounded-lg">
+                                    <Video className="h-3.5 w-3.5 text-rose-600" />
+                                </div>
+                                <span className="text-[10px] font-black text-slate-700 uppercase italic">Videos</span>
+                            </div>
+                            <div className="space-y-1.5">
+                                <p className="text-[9px] font-bold text-slate-400 pl-1 uppercase tracking-tighter mb-1">Target: <span className="text-slate-600">{client.client_monthly_videos}</span></p>
+                                <Label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">Finished</Label>
+                                <Input
+                                    type="number"
+                                    value={client.videos_completed}
+                                    readOnly={isHistory}
+                                    onChange={(e) => handleInputChange(client.id, 'videos_completed', e.target.value)}
+                                    className={`bg-slate-50/50 border-slate-100 font-black text-rose-700 focus:ring-rose-500/20 rounded-xl h-9 ${isHistory ? 'opacity-70' : ''}`}
+                                />
+                                <Label className="text-[9px] font-black text-slate-400 uppercase tracking-widest pl-1">Posted</Label>
+                                <Input
+                                    type="number"
+                                    value={client.videos_posted}
+                                    readOnly={isHistory}
+                                    onChange={(e) => handleInputChange(client.id, 'videos_posted', e.target.value)}
+                                    className={`bg-slate-50/50 border-slate-100 font-black text-rose-900 focus:ring-rose-500/20 rounded-xl h-9 ${isHistory ? 'opacity-70' : ''}`}
+                                />
+                            </div>
+                        </div>
                     </div>
                 </CardContent>
+
+                {!isHistory && (
+                    <CardFooter className="grid grid-cols-2 gap-3 pt-4 border-t border-slate-50 bg-slate-50/30">
+                        <Button
+                            onClick={() => handleSave(client)}
+                            disabled={savingIds.includes(client.id)}
+                            variant="outline"
+                            className="rounded-2xl font-black text-[10px] uppercase tracking-widest gap-2 bg-white hover:bg-white hover:scale-[1.02] active:scale-95 transition-all shadow-sm"
+                        >
+                            {savingIds.includes(client.id) ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                                <Save className="h-3 w-3" />
+                            )}
+                            {savingIds.includes(client.id) ? 'Saving...' : 'Submit'}
+                        </Button>
+                        <Button
+                            onClick={() => handleCloseMonth(client)}
+                            disabled={closingIds.includes(client.id) || savingIds.includes(client.id)}
+                            className="rounded-2xl font-black text-[10px] uppercase tracking-widest gap-2 bg-slate-900 hover:bg-slate-800 hover:scale-[1.02] active:scale-95 transition-all shadow-md group/btn"
+                        >
+                            {closingIds.includes(client.id) ? (
+                                <Loader2 className="h-3 w-3 animate-spin" />
+                            ) : (
+                                <Archive className="h-3 w-3 group-hover/btn:rotate-12 transition-transform" />
+                            )}
+                            {closingIds.includes(client.id) ? 'Closing...' : 'Close'}
+                        </Button>
+                    </CardFooter>
+                )}
             </Card>
+        );
+    };
 
-            {/* Modals */}
-            <AddContentModal />
-            <ClientDetailsModal />
+    if (loading && activeTab === "active") {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50/30">
+                <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+                <p className="text-slate-500 font-medium animate-pulse">Fetching verification data...</p>
+            </div>
+        );
+    }
 
-            {/* Delete Confirmation Dialog */}
-            <AlertDialog open={!!contentToDelete} onOpenChange={(open) => !open && setContentToDelete(null)}>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This will permanently delete the {contentToDelete?.content_type_display?.toLowerCase()}
-                            titled "{contentToDelete?.title}" posted on {contentToDelete ? new Date(contentToDelete.posted_date).toLocaleDateString() : ''}.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteContent} className="bg-red-600 hover:bg-red-700">
-                            Delete
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+    const months = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+    ];
+
+    const currentYear = new Date().getFullYear();
+    const years = Array.from({ length: 5 }, (_, i) => (currentYear - i).toString());
+
+    return (
+        <div className="container mx-auto p-6 space-y-8 animate-in fade-in duration-700 bg-slate-50/30 min-h-screen">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-200 pb-6">
+                <div>
+                    <h1 className="text-4xl font-black tracking-tight text-slate-900 uppercase italic flex items-center gap-3">
+                        <BadgeCheck className="h-10 w-10 text-primary" />
+                        Client <span className="text-primary">Verification</span>
+                    </h1>
+                    <p className="text-muted-foreground mt-2 font-medium tracking-wide">
+                        Manage and track content deliverables for clients.
+                    </p>
+                </div>
+                <div className="flex items-center gap-4">
+                    {activeTab === "verified" && (
+                        <div className="flex items-center gap-2 bg-white p-2 rounded-2xl shadow-sm ring-1 ring-slate-200/50">
+                            <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                                <SelectTrigger className="w-[140px] border-none shadow-none font-bold text-slate-600 focus:ring-0">
+                                    <CalendarDays className="h-4 w-4 mr-2 text-primary" />
+                                    <SelectValue placeholder="Month" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-2xl border-slate-100 shadow-xl">
+                                    {months.map((month, idx) => (
+                                        <SelectItem key={month} value={(idx + 1).toString()} className="font-bold text-slate-600 focus:bg-slate-50 rounded-xl">
+                                            {month}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+
+                            <div className="w-px h-6 bg-slate-200 mx-1"></div>
+
+                            <Select value={selectedYear} onValueChange={setSelectedYear}>
+                                <SelectTrigger className="w-[100px] border-none shadow-none font-bold text-slate-600 focus:ring-0">
+                                    <SelectValue placeholder="Year" />
+                                </SelectTrigger>
+                                <SelectContent className="rounded-2xl border-slate-100 shadow-xl">
+                                    {years.map(year => (
+                                        <SelectItem key={year} value={year} className="font-bold text-slate-600 focus:bg-slate-50 rounded-xl">
+                                            {year}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+                    <div className="flex items-center gap-3 bg-white p-2 rounded-2xl shadow-sm ring-1 ring-slate-200/50">
+                        <Badge variant="outline" className="text-xs font-black px-4 py-1.5 rounded-xl border-2 border-primary/20 bg-primary/5 text-primary">
+                            {months[parseInt(selectedMonth) - 1]?.toUpperCase()} {selectedYear}
+                        </Badge>
+                    </div>
+                </div>
+            </div>
+
+            <Tabs defaultValue="active" onValueChange={setActiveTab} className="w-full">
+                <div className="flex justify-center mb-8">
+                    <TabsList className="bg-white p-1.5 rounded-[2rem] h-auto shadow-sm ring-1 ring-slate-200/50">
+                        <TabsTrigger
+                            value="active"
+                            className="rounded-full px-8 py-2.5 font-black text-xs uppercase tracking-widest data-[state=active]:bg-slate-900 data-[state=active]:text-white transition-all gap-2"
+                        >
+                            <Layout className="h-3.5 w-3.5" />
+                            Pending
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="verified"
+                            className="rounded-full px-8 py-2.5 font-black text-xs uppercase tracking-widest data-[state=active]:bg-slate-900 data-[state=active]:text-white transition-all gap-2"
+                        >
+                            <History className="h-3.5 w-3.5" />
+                            Verified History
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
+
+                <TabsContent value="active" className="mt-0 space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                        {clients.map(client => renderClientCard(client, false))}
+                    </div>
+                    {clients.length === 0 && !loading && (
+                        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[3rem] shadow-sm ring-1 ring-slate-200">
+                            <Archive className="h-16 w-16 text-slate-200 mb-4" />
+                            <p className="text-slate-400 font-bold uppercase tracking-widest">No pending verifications found</p>
+                        </div>
+                    )}
+                </TabsContent>
+
+                <TabsContent value="verified" className="mt-0 space-y-8">
+                    {historyLoading ? (
+                        <div className="flex flex-col items-center justify-center py-20">
+                            <Loader2 className="h-10 w-10 animate-spin text-primary opacity-20" />
+                        </div>
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                                {verifiedClients.map(client => renderClientCard(client, true))}
+                            </div>
+                            {verifiedClients.length === 0 && (
+                                <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[3rem] shadow-sm ring-1 ring-slate-200">
+                                    <History className="h-16 w-16 text-slate-200 mb-4" />
+                                    <p className="text-slate-400 font-bold uppercase tracking-widest">No verified records for this period</p>
+                                </div>
+                            )}
+                        </>
+                    )}
+                </TabsContent>
+            </Tabs>
         </div>
     );
 };
 
-export default Verification;
+export default MonthlyClientVerification;
