@@ -48,7 +48,7 @@ const Navbar = ({ }: NavbarProps) => {
   const userInfo = useSelector((state: RootState) => state.auth.userInfo);
   const user = useSelector((state: RootState) => state.auth.user);
 
-  const isAdmin = user === 'admin' || user === 'superuser' || (typeof user === 'object' && (user.is_superuser || ['admin', 'superuser'].includes(user.role)));
+  const isAdmin = user === 'admin' || user === 'superuser' || (user && typeof user === 'object' && (user.is_superuser || ['admin', 'superuser'].includes(user.role)));
 
   const getFullName = () => {
     if (!userInfo) return "Guest User";

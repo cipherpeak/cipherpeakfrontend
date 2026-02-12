@@ -40,7 +40,7 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
   const user = useSelector((state: RootState) => state.auth.user);
   const userInfo = useSelector((state: RootState) => state.auth.userInfo);
   const dispatch = useDispatch();
-  console.log(userInfo, "this is iyserewrwrwrwerwe")
+
   useEffect(() => {
     const fetchFullProfile = async () => {
       // If we have userInfo but it's missing critical fields, fetch full list and find self
@@ -50,7 +50,7 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
           const employees = Array.isArray(response.data) ? response.data : (response.data.employees || []);
           const me = employees.find((emp: any) => emp.id === userInfo.id);
           if (me) {
-            console.log('Sidebar: Successfully fetched full profile for', me.username);
+
             dispatch(updateUserInfo(me));
           }
         } catch (error) {
@@ -62,8 +62,7 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
     fetchFullProfile();
   }, [userInfo?.id, dispatch]);
 
-  console.log('Sidebar Debug - user Role:', user);
-  console.log('Sidebar Debug - userInfo:', userInfo);
+
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
@@ -80,7 +79,7 @@ const Sidebar = ({ isCollapsed, onToggle }: SidebarProps) => {
   ];
 
   const filteredNavItems = navItems.filter((item) => {
-    const isAdmin = user === 'admin' || user === 'superuser' || (typeof user === 'object' && (user.is_superuser || ['admin', 'superuser'].includes(user.role)));
+    const isAdmin = user === 'admin' || user === 'superuser' || (user && typeof user === 'object' && (user.is_superuser || ['admin', 'superuser'].includes(user.role)));
     const role = typeof user === 'string' ? user : user?.role;
     const userType = userInfo?.user_type;
 
